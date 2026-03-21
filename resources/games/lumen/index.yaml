@@ -1,0 +1,10 @@
+type: SoftwareApplication
+name: Lumen Drift
+description: Atmospheric puzzle-platform prototype included to demonstrate collection and search output.
+genre: Puzzle
+publisher: /publishers/lighthouse
+url: https://example.com/games/lumen
+image: https://example.com/images/lumen.png
+tags:
+  - puzzle
+  - platformer

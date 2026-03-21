@@ -1,0 +1,24 @@
+{
+  "name": "static-api-json-schema",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Transform yaml into schema.org-compatible JSON-LD files and deploy as a static API.",
+  "scripts": {
+    "build": "npm run compile && node ./dist/src/core/cli.js build",
+    "clean": "npm run compile && node ./dist/src/core/cli.js clean",
+    "dev": "npm run compile && node ./dist/src/core/cli.js dev",
+    "test": "npm run compile && node --test dist/test/**/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run compile && node ./dist/src/core/cli.js validate",
+    "compile": "tsc -p tsconfig.json",
+    "prepare": "npm run compile"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}

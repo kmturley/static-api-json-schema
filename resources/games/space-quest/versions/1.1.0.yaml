@@ -1,0 +1,10 @@
+type: SoftwareSourceCode
+version: 1.1.0
+datePublished: 2025-02-20
+releaseNotes: Improves performance and adds a new mission briefing.
+files:
+  - name: Space Quest 1.1.0 macOS
+    path: /games/space-quest/files/space-quest-1.1.0-macos.txt
+    encodingFormat: text/plain
+    license: https://spdx.org/licenses/MIT.html
+    operatingSystem: macOS
