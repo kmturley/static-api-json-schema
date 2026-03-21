@@ -4,14 +4,13 @@
   "type": "module",
   "description": "Transform yaml into schema.org-compatible JSON-LD files and deploy as a static API.",
   "scripts": {
-    "build": "npm run compile && node ./dist/src/core/cli.js build",
-    "clean": "npm run compile && node ./dist/src/core/cli.js clean",
-    "dev": "npm run compile && node ./dist/src/core/cli.js dev",
-    "test": "npm run compile && node --test dist/test/**/*.test.js",
+    "build": "node --import tsx ./src/core/cli.ts build",
+    "clean": "node --import tsx ./src/core/cli.ts clean",
+    "dev": "node --import tsx ./src/core/cli.ts dev",
+    "test": "node --import tsx --test ./test/engine.test.ts",
     "typecheck": "tsc --noEmit",
-    "validate": "npm run compile && node ./dist/src/core/cli.js validate",
-    "compile": "tsc -p tsconfig.json",
-    "prepare": "npm run compile"
+    "validate": "node --import tsx ./src/core/cli.ts validate",
+    "compile": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "yaml": "^2.8.1",
@@ -19,6 +18,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }
 }
