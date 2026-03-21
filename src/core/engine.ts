@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { z } from "zod";
@@ -34,10 +35,24 @@ import {
   toSearchSlug,
 } from "./utils.js";
 
+const ReferenceObjectSchema = z.object({
+  "@id": z.url(),
+  "@type": z.string().min(1),
+  name: z.string().min(1).optional(),
+});
+
 const IndexDocumentSchema = z.object({
   "@context": z.string().min(1),
   "@type": z.string().min(1),
   "@id": z.url(),
+});
+
+const CollectionPageSchema = IndexDocumentSchema.extend({
+  name: z.string().min(1),
+  hasPart: z.array(ReferenceObjectSchema).optional(),
+  about: z.array(ReferenceObjectSchema).optional(),
+  value: z.union([z.string(), z.number(), z.boolean()]).optional(),
+  version: z.string().min(1).optional(),
 });
 
 export interface BuildOptions {
@@ -266,18 +281,18 @@ async function generateArtifacts(
 
   const rootDocument = buildRootIndex(config, instances, normalizedDomain);
   claimOutputPath(claims, rootDocument.outputPath, "root-index");
-  validateGeneratedDocument(rootDocument.document, "root-index");
+  validateGeneratedDocument(rootDocument.document, "root-index", CollectionPageSchema);
   documents.push(rootDocument);
 
   for (const [resourceType, instanceGroup] of groupByResourceType(instances)) {
     const collection = buildCollectionIndex(config, resourceType, instanceGroup, normalizedDomain);
     claimOutputPath(claims, collection.outputPath, `collection:${resourceType}`);
-    validateGeneratedDocument(collection.document, `collection:${resourceType}`);
+    validateGeneratedDocument(collection.document, `collection:${resourceType}`, CollectionPageSchema);
     documents.push(collection);
 
     const searchDocuments = buildSearchIndexes(config, resourceType, instanceGroup, normalizedDomain, claims);
     for (const document of searchDocuments) {
-      validateGeneratedDocument(document.document, `search:${resourceType}`);
+      validateGeneratedDocument(document.document, `search:${resourceType}`, CollectionPageSchema);
       documents.push(document);
     }
   }
@@ -427,7 +442,7 @@ function compileResourceArtifacts(
         hasPart: versionRefs,
       },
     };
-    validateGeneratedDocument(versionIndexDocument.document, versionIndexOutputPath);
+    validateGeneratedDocument(versionIndexDocument.document, versionIndexOutputPath, CollectionPageSchema);
 
     const latest = instance.versions[0];
     if (!latest) {
@@ -509,6 +524,22 @@ function copyAsset(
     "path",
   );
 
+  if (!existsSync(sourcePath)) {
+    throw new BuildError("Referenced local asset does not exist", {
+      code: "MISSING_LOCAL_ASSET",
+      filePath,
+      fieldPath: "path",
+    });
+  }
+
+  if (!statSync(sourcePath).isFile()) {
+    throw new BuildError("Referenced local asset must be a file", {
+      code: "INVALID_LOCAL_ASSET",
+      filePath,
+      fieldPath: "path",
+    });
+  }
+
   const assetFileName = path.basename(sourcePath);
   const outputPath = "versionId" in owner
     ? `${owner.resourceType}/${owner.resourceId}/versions/${owner.versionId}/assets/${assetFileName}`
@@ -558,6 +589,14 @@ function buildRootIndex(
   rootDomain: string,
 ): GeneratedDocument {
   const resourceTypes = groupByResourceType(instances);
+  const searchManifestLinks = [...resourceTypes.keys()]
+    .filter((resourceType) => (config.resourceTypes[resourceType]?.searchAttributes ?? []).length > 0)
+    .map((resourceType) => ({
+      "@id": `${rootDomain}/${resourceType}/search`,
+      "@type": "CollectionPage",
+      name: `${resourceType} search`,
+    }));
+
   return {
     outputPath: "index.json",
     urlPath: "/",
@@ -572,6 +611,7 @@ function buildRootIndex(
         "@type": "CollectionPage",
         name: resourceType,
       })),
+      about: searchManifestLinks,
     },
   };
 }
@@ -616,8 +656,8 @@ function buildCollectionIndex(
       name: `${resourceType} collection`,
       hasPart: sorted.map((instance) => ({
         "@id": `${rootDomain}/${instance.resource.resourceType}/${instance.resource.resourceId}`,
-        "@type": "CreativeWork",
-        name: instance.resource.resourceId,
+        "@type": getResourceReferenceType(instance),
+        name: getResourceReferenceName(instance),
       })),
       about: searchManifestLinks,
     },
@@ -648,7 +688,10 @@ function buildSearchIndexes(
   const attributeDocuments: JsonObject[] = [];
 
   for (const attribute of attributes) {
-    const valuesToResources = new Map<string, { originalValue: string; resourceIds: string[] }>();
+    const valuesToResources = new Map<
+      string,
+      { originalValue: string; resources: Array<{ resourceId: string; jsonLdType: string; name: string }> }
+    >();
 
     for (const instance of instances) {
       const value = getPathValue(instance.resource.data, attribute);
@@ -664,8 +707,12 @@ function buildSearchIndexes(
             resourceType,
           });
         }
-        const entry = existing ?? { originalValue, resourceIds: [] };
-        entry.resourceIds.push(instance.resource.resourceId);
+        const entry = existing ?? { originalValue, resources: [] };
+        entry.resources.push({
+          resourceId: instance.resource.resourceId,
+          jsonLdType: getResourceReferenceType(instance),
+          name: getResourceReferenceName(instance),
+        });
         valuesToResources.set(slug, entry);
       }
     }
@@ -680,7 +727,9 @@ function buildSearchIndexes(
     };
 
     for (const [slug, entry] of valuesToResources) {
-      entry.resourceIds = toRegularCharacterSort(entry.resourceIds);
+      entry.resources = entry.resources.sort((a, b) =>
+        a.resourceId < b.resourceId ? -1 : a.resourceId > b.resourceId ? 1 : 0,
+      );
       const searchDoc: GeneratedDocument = {
         outputPath: `${resourceType}/search/${attribute}/${slug}/index.json`,
         urlPath: `/${resourceType}/search/${attribute}/${slug}`,
@@ -690,10 +739,10 @@ function buildSearchIndexes(
           "@id": `${rootDomain}/${resourceType}/search/${attribute}/${slug}`,
           name: `${resourceType} ${attribute} ${entry.originalValue}`,
           value: entry.originalValue,
-          hasPart: entry.resourceIds.map((resourceId) => ({
-            "@id": `${rootDomain}/${resourceType}/${resourceId}`,
-            "@type": "CreativeWork",
-            name: resourceId,
+          hasPart: entry.resources.map((resource) => ({
+            "@id": `${rootDomain}/${resourceType}/${resource.resourceId}`,
+            "@type": resource.jsonLdType,
+            name: resource.name,
           })),
         },
       };
@@ -752,6 +801,16 @@ function getPathValue(input: JsonValue | undefined, pathExpression: string): Jso
   }
 
   return current;
+}
+
+function getResourceReferenceType(instance: ResourceInstance): string {
+  const declaredType = instance.resource.data.type ?? instance.resource.data["@type"];
+  return typeof declaredType === "string" ? declaredType : "CreativeWork";
+}
+
+function getResourceReferenceName(instance: ResourceInstance): string {
+  const name = instance.resource.data.name;
+  return typeof name === "string" && name.length > 0 ? name : instance.resource.resourceId;
 }
 
 function collectPrimitiveIndexValues(value: JsonValue | undefined): Array<string | number | boolean> {
@@ -856,19 +915,6 @@ async function writeArtifacts(
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
     await fs.copyFile(asset.sourcePath, targetPath);
   }
-
-  await fs.writeFile(
-    path.join(outRoot, "build-manifest.json"),
-    JSON.stringify(
-      {
-        apiName: config.apiName,
-        files: documents.map((document) => pathToPosix(document.outputPath)),
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
 }
 
 function structuredCloneJson<T extends JsonValue>(value: T): T {

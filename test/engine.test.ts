@@ -85,6 +85,23 @@ test("builds resources, versions, latest alias, and search indexes", async () =>
 
   const rootIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/index.json"), "utf8"));
   assert.equal(rootIndex.name, "Example API");
+  assert.deepEqual(rootIndex.about, [
+    {
+      "@id": "https://example.com/games/search",
+      "@type": "CollectionPage",
+      name: "games search",
+    },
+  ]);
+
+  const publishersIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/publishers/index.json"), "utf8"));
+  assert.equal(publishersIndex.hasPart[0]["@type"], "Organization");
+  assert.equal(publishersIndex.hasPart[0].name, "Acme Games");
+
+  const gamesSearchIndex = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/games/search/genre/action/index.json"), "utf8"),
+  );
+  assert.equal(gamesSearchIndex.hasPart[0]["@type"], "SoftwareApplication");
+  assert.equal(gamesSearchIndex.hasPart[0].name, "Test Game");
 });
 
 test("writes formatted JSON in development mode and minified JSON in production mode", async () => {
@@ -108,6 +125,59 @@ test("fails on duplicate YAML keys", async () => {
   });
 
   await assert.rejects(() => runBuild({ cwd, write: false, config: makeTestConfig({ publishers: {} }) }, registry));
+});
+
+test("fails with context when a referenced local asset does not exist", async () => {
+  const assetRegistry: SchemaRegistry = {
+    games: {
+      resourceSchema: z.object({
+        type: z.literal("SoftwareApplication"),
+        name: z.string(),
+      }),
+      versionSchema: z.object({
+        type: z.literal("SoftwareSourceCode"),
+        version: z.string(),
+        file: z.object({
+          path: z.string(),
+        }),
+      }),
+      resourceJsonLdType: "SoftwareApplication",
+      versionJsonLdType: "SoftwareSourceCode",
+      allowedResourceTypes: ["SoftwareApplication"],
+      allowedVersionTypes: ["SoftwareSourceCode"],
+      compileResource({ resource, helper }) {
+        return helper.makeJsonLdDocument("SoftwareApplication", {
+          name: resource.data.name as string,
+        });
+      },
+      compileVersion({ version, helper }) {
+        return helper.makeJsonLdDocumentAt(helper.versionUrl(version.versionId), "SoftwareSourceCode", {
+          version: version.data.version as string,
+          file: helper.copyAsset(
+            { path: ((version.data.file as JsonObject).path as string) },
+            {
+              resourceType: version.resourceType,
+              resourceId: version.resourceId,
+              versionId: version.versionId,
+            },
+          ),
+        });
+      },
+    },
+  };
+
+  const cwd = await makeFixture({
+    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\n",
+    "resources/games/test/versions/1.0.0.yaml": "type: SoftwareSourceCode\nversion: 1.0.0\nfile:\n  path: /games/test/files/missing.zip\n",
+  });
+
+  await assert.rejects(
+    () => runBuild({ cwd, write: false, config: makeTestConfig({ games: {} }), mode: "development" }, assetRegistry),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("Referenced local asset does not exist") &&
+      "fieldPath" in error,
+  );
 });
 
 async function makeFixture(files: Record<string, string>): Promise<string> {

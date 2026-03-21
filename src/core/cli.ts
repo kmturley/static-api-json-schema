@@ -87,7 +87,7 @@ function parseMode(args: string[], command: string): BuildMode {
 
   const modeFlag = args.find((arg) => arg.startsWith("--mode="));
   if (!modeFlag) {
-    return command === "build" ? "production" : "development";
+    return "development";
   }
 
   const value = modeFlag.slice("--mode=".length);
