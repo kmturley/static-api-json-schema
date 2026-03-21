@@ -9,9 +9,16 @@ import { formatError } from "./errors.js";
 import type { BuildMode } from "./types.js";
 
 async function main(): Promise<void> {
-  const command = process.argv[2] ?? "build";
+  const rawArgs = process.argv.slice(2);
+  const command = rawArgs[0] ?? "build";
   const cwd = process.cwd();
-  const mode = parseMode(process.argv.slice(3), command);
+
+  if (command === "help" || command === "--help" || command === "-h") {
+    printHelp();
+    return;
+  }
+
+  const mode = parseMode(rawArgs.slice(1), command);
 
   try {
     switch (command) {
@@ -31,6 +38,7 @@ async function main(): Promise<void> {
         await runDev(cwd);
         return;
       default:
+        printHelp();
         throw new Error(`Unknown command: ${command}`);
     }
   } catch (error) {
@@ -96,6 +104,33 @@ function parseMode(args: string[], command: string): BuildMode {
   }
 
   throw new Error(`Invalid mode: ${value}`);
+}
+
+function printHelp(): void {
+  console.log(`Static API JSON Schema
+
+Usage:
+  npm run build -- --mode=development|production
+  npm run validate -- --mode=development|production
+  npm run dev
+  npm run clean
+  npm test
+  npm run typecheck
+
+CLI commands:
+  build      Build generated output into out/
+  validate   Validate sources and generated documents without writing output
+  dev        Run a development build, watch resources/, and serve out/ locally
+  clean      Remove the out/ directory
+
+Modes:
+  --mode=development   Write formatted JSON output
+  --mode=production    Write minified JSON output
+
+Notes:
+  build and validate default to development mode unless --mode=production is provided.
+  test is a project command provided through npm, not a direct CLI subcommand.
+`);
 }
 
 void main();
