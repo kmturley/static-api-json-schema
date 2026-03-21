@@ -180,6 +180,228 @@ test("fails with context when a referenced local asset does not exist", async ()
   );
 });
 
+test("rebuilds latest alias to the next-highest version when the highest version is removed", async () => {
+  const cwd = await makeFixture({
+    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\n",
+    "resources/games/test/versions/2.0.0.yaml": "type: SoftwareSourceCode\nversion: 2.0.0\ndatePublished: 2025-01-01\n",
+    "resources/games/test/versions/1.0.0.yaml": "type: SoftwareSourceCode\nversion: 1.0.0\ndatePublished: 2024-01-01\n",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" }, registry);
+  let latest = JSON.parse(await fs.readFile(path.join(cwd, "out/games/test/versions/latest/index.json"), "utf8"));
+  assert.equal(latest.version, "2.0.0");
+
+  await fs.rm(path.join(cwd, "resources/games/test/versions/2.0.0.yaml"));
+  await runBuild({ cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" }, registry);
+
+  latest = JSON.parse(await fs.readFile(path.join(cwd, "out/games/test/versions/latest/index.json"), "utf8"));
+  assert.equal(latest.version, "1.0.0");
+});
+
+test("creates empty attribute search indexes when no resources match", async () => {
+  const cwd = await makeFixture({
+    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\n",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig({ games: { searchAttributes: ["genre"] } }), mode: "development" }, registry);
+
+  const attributeIndex = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/games/search/genre/index.json"), "utf8"),
+  );
+  assert.deepEqual(attributeIndex.hasPart, []);
+});
+
+test("fails when a declared resource type is incompatible with its directory resource type", async () => {
+  const mismatchRegistry: SchemaRegistry = {
+    publishers: {
+      resourceSchema: z.object({
+        type: z.string(),
+        name: z.string(),
+      }),
+      resourceJsonLdType: "Organization",
+      allowedResourceTypes: ["Organization"],
+      compileResource({ resource, helper }) {
+        return helper.makeJsonLdDocument("Organization", {
+          name: resource.data.name as string,
+        });
+      },
+    },
+  };
+
+  const cwd = await makeFixture({
+    "resources/publishers/acme/index.yaml": "type: SoftwareApplication\nname: Wrong Type\n",
+  });
+
+  await assert.rejects(
+    () =>
+      runBuild({ cwd, write: false, config: makeTestConfig({ publishers: {} }), mode: "development" }, mismatchRegistry),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("Declared resource type is incompatible"),
+  );
+});
+
+test("fails when an internal reference target does not exist", async () => {
+  const cwd = await makeFixture({
+    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\npublisher: /publishers/missing\n",
+  });
+
+  await assert.rejects(
+    () => runBuild({ cwd, write: false, config: makeTestConfig({ games: {} }), mode: "development" }, registry),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("Referenced internal resource or version does not exist") &&
+      "referencePath" in error,
+  );
+});
+
+test("indexes arrays, numbers, booleans and ignores empty, missing, and mixed values", async () => {
+  const indexingRegistry: SchemaRegistry = {
+    items: {
+      resourceSchema: z.object({
+        type: z.literal("Thing"),
+        name: z.string(),
+        tags: z.array(z.string()).optional(),
+        rating: z.number().optional(),
+        featured: z.boolean().optional(),
+        emptyLabel: z.string().optional(),
+        maybeNull: z.string().nullable().optional(),
+        mixed: z.array(z.union([z.string(), z.object({ bad: z.string() })])).optional(),
+      }),
+      resourceJsonLdType: "Thing",
+      allowedResourceTypes: ["Thing"],
+      compileResource({ resource, helper }) {
+        return helper.makeJsonLdDocument("Thing", {
+          name: resource.data.name as string,
+        });
+      },
+    },
+  };
+
+  const cwd = await makeFixture({
+    "resources/items/alpha/index.yaml": [
+      "type: Thing",
+      "name: Alpha",
+      "tags:",
+      "  - red",
+      "  - blue",
+      "rating: 5",
+      "featured: true",
+      "emptyLabel: \"\"",
+      "maybeNull: null",
+      "mixed:",
+      "  - valid",
+      "  - bad: nope",
+      "",
+    ].join("\n"),
+  });
+
+  await runBuild(
+    {
+      cwd,
+      write: true,
+      mode: "development",
+      config: makeTestConfig({
+        items: {
+          searchAttributes: ["tags", "rating", "featured", "emptyLabel", "missing", "maybeNull", "mixed"],
+        },
+      }),
+    },
+    indexingRegistry,
+  );
+
+  const tagsIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/items/search/tags/red/index.json"), "utf8"));
+  assert.equal(tagsIndex.hasPart[0].name, "Alpha");
+
+  const ratingIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/items/search/rating/5/index.json"), "utf8"));
+  assert.equal(ratingIndex.value, "5");
+
+  const featuredIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/items/search/featured/true/index.json"), "utf8"));
+  assert.equal(featuredIndex.value, "true");
+
+  const emptyAttributeIndex = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/items/search/emptyLabel/index.json"), "utf8"),
+  );
+  assert.deepEqual(emptyAttributeIndex.hasPart, []);
+
+  const missingAttributeIndex = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/items/search/missing/index.json"), "utf8"),
+  );
+  assert.deepEqual(missingAttributeIndex.hasPart, []);
+
+  const nullAttributeIndex = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/items/search/maybeNull/index.json"), "utf8"),
+  );
+  assert.deepEqual(nullAttributeIndex.hasPart, []);
+
+  const mixedAttributeIndex = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/items/search/mixed/index.json"), "utf8"),
+  );
+  assert.deepEqual(mixedAttributeIndex.hasPart, []);
+});
+
+test("fails with detailed diagnostics for search normalization collisions", async () => {
+  const cwd = await makeFixture({
+    "resources/items/first/index.yaml": "type: Thing\nname: First Item\ntag: C++\n",
+    "resources/items/second/index.yaml": "type: Thing\nname: Second Item\ntag: C\n",
+  });
+
+  const indexingRegistry: SchemaRegistry = {
+    items: {
+      resourceSchema: z.object({
+        type: z.literal("Thing"),
+        name: z.string(),
+        tag: z.string(),
+      }),
+      resourceJsonLdType: "Thing",
+      allowedResourceTypes: ["Thing"],
+      compileResource({ resource, helper }) {
+        return helper.makeJsonLdDocument("Thing", {
+          name: resource.data.name as string,
+        });
+      },
+    },
+  };
+
+  await assert.rejects(
+    () =>
+      runBuild(
+        {
+          cwd,
+          write: false,
+          mode: "development",
+          config: makeTestConfig({
+            items: {
+              searchAttributes: ["tag"],
+            },
+          }),
+        },
+        indexingRegistry,
+      ),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("Search value normalization collision detected") &&
+      "normalizedValue" in error &&
+      "originalValue" in error &&
+      "conflictingSource" in error,
+  );
+});
+
+test("fails with detailed diagnostics for reserved path segments", async () => {
+  const cwd = await makeFixture({
+    "resources/publishers/search/index.yaml": "type: Organization\nname: Reserved\n",
+  });
+
+  await assert.rejects(
+    () => runBuild({ cwd, write: false, config: makeTestConfig({ publishers: {} }), mode: "development" }, registry),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("reserved generated path segment") &&
+      "originalValue" in error &&
+      "normalizedValue" in error,
+  );
+});
+
 async function makeFixture(files: Record<string, string>): Promise<string> {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "static-api-json-schema-"));
   for (const [relativePath, content] of Object.entries(files)) {

@@ -40,12 +40,15 @@ export function assertSafeResourceSegment(
     throw new BuildError(`${label} must contain only lowercase ASCII letters, digits, and hyphens`, {
       code: "INVALID_PATH_SEGMENT",
       filePath,
+      originalValue: value,
     });
   }
   if (RESERVED_SEGMENTS.has(value)) {
     throw new BuildError(`${label} collides with a reserved generated path segment`, {
       code: "RESERVED_PATH_SEGMENT",
       filePath,
+      originalValue: value,
+      normalizedValue: value,
     });
   }
 }
@@ -57,6 +60,7 @@ export function assertSafeVersionSegment(value: string, filePath: string): void 
       {
         code: "INVALID_VERSION_SEGMENT",
         filePath,
+        originalValue: value,
       },
     );
   }
@@ -64,6 +68,8 @@ export function assertSafeVersionSegment(value: string, filePath: string): void 
     throw new BuildError("Version identifier collides with a reserved generated path segment", {
       code: "RESERVED_PATH_SEGMENT",
       filePath,
+      originalValue: value,
+      normalizedValue: value,
     });
   }
 }

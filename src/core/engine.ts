@@ -490,6 +490,7 @@ function resolveReference(
     throw new BuildError("Referenced internal resource or version does not exist", {
       code: "MISSING_INTERNAL_REFERENCE",
       filePath,
+      referencePath,
     });
   }
   return makeReferenceObject(target.canonicalUrl, target.jsonLdType);
@@ -578,6 +579,9 @@ function claimOutputPath(claims: Map<string, string>, outputPath: string, source
     throw new BuildError("Generated output path collision detected", {
       code: "OUTPUT_PATH_COLLISION",
       filePath: outputPath,
+      generatedPath: outputPath,
+      conflictingSource: existing,
+      originalValue: source,
     });
   }
   claims.set(outputPath, source);
@@ -705,6 +709,9 @@ function buildSearchIndexes(
             code: "SEARCH_COLLISION",
             fieldPath: attribute,
             resourceType,
+            originalValue,
+            normalizedValue: slug,
+            conflictingSource: existing.originalValue,
           });
         }
         const entry = existing ?? { originalValue, resources: [] };
