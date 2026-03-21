@@ -16,6 +16,8 @@ export interface ProjectConfig {
   resourceTypes: Record<string, ResourceTypeConfig>;
 }
 
+export type BuildMode = "development" | "production";
+
 export interface ResourceSource {
   kind: "resource";
   filePath: string;

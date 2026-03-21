@@ -73,7 +73,7 @@ test("builds resources, versions, latest alias, and search indexes", async () =>
     "resources/games/test/versions/1.1.0.yaml": "type: SoftwareSourceCode\nversion: 1.1.0\ndatePublished: 2023-01-01\n",
   });
 
-  const result = await runBuild({ cwd, write: true, config: makeTestConfig() }, registry);
+  const result = await runBuild({ cwd, write: true, config: makeTestConfig(), mode: "development" }, registry);
 
   assert.ok(result.documents.some((document) => document.outputPath === "games/test/versions/latest/index.json"));
   assert.ok(result.documents.some((document) => document.outputPath === "games/search/genre/action/index.json"));
@@ -85,6 +85,21 @@ test("builds resources, versions, latest alias, and search indexes", async () =>
 
   const rootIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/index.json"), "utf8"));
   assert.equal(rootIndex.name, "Example API");
+});
+
+test("writes formatted JSON in development mode and minified JSON in production mode", async () => {
+  const cwd = await makeFixture({
+    "resources/publishers/acme/index.yaml": "type: Organization\nname: Acme Games\n",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig({ publishers: {} }), mode: "development" }, registry);
+  const developmentJson = await fs.readFile(path.join(cwd, "out/publishers/acme/index.json"), "utf8");
+  assert.match(developmentJson, /\n  "@context":/);
+
+  await runBuild({ cwd, write: true, config: makeTestConfig({ publishers: {} }), mode: "production" }, registry);
+  const productionJson = await fs.readFile(path.join(cwd, "out/publishers/acme/index.json"), "utf8");
+  assert.doesNotMatch(productionJson, /\n  "@context":/);
+  assert.ok(!productionJson.includes("\n"));
 });
 
 test("fails on duplicate YAML keys", async () => {

@@ -8,6 +8,7 @@ import { discoverSources } from "./discovery.js";
 import { BuildError } from "./errors.js";
 import type {
   AssetInput,
+  BuildMode,
   CompileHelpers,
   GeneratedAsset,
   GeneratedDocument,
@@ -43,24 +44,28 @@ export interface BuildOptions {
   cwd: string;
   write: boolean;
   config?: ProjectConfig;
+  mode?: BuildMode;
 }
 
 export interface BuildResult {
   config: ProjectConfig;
+  mode: BuildMode;
   documents: GeneratedDocument[];
   assets: GeneratedAsset[];
 }
 
 export async function runBuild(options: BuildOptions, registry: SchemaRegistry): Promise<BuildResult> {
   const config = options.config ?? await loadProjectConfig();
+  const mode = options.mode ?? "development";
   const instances = await discoverSources(options.cwd, config);
   const loadedInstances = await loadAndValidateInstances(instances, registry);
 
   const result = await generateArtifacts(options.cwd, config, loadedInstances, registry);
+  result.mode = mode;
 
   if (options.write) {
     await cleanOutDir(options.cwd);
-    await writeArtifacts(options.cwd, result.documents, result.assets, result.config);
+    await writeArtifacts(options.cwd, result.documents, result.assets, result.config, mode);
   }
 
   return result;
@@ -290,7 +295,7 @@ async function generateArtifacts(
     },
   });
 
-  return { config, documents, assets };
+  return { config, mode: "development", documents, assets };
 }
 
 function compileResourceArtifacts(
@@ -821,6 +826,7 @@ async function writeArtifacts(
   documents: GeneratedDocument[],
   assets: GeneratedAsset[],
   config: ProjectConfig,
+  mode: BuildMode,
 ): Promise<void> {
   const outRoot = path.join(cwd, "out");
   await fs.mkdir(outRoot, { recursive: true });
@@ -841,7 +847,8 @@ async function writeArtifacts(
       continue;
     }
 
-    await fs.writeFile(targetPath, JSON.stringify(document.document, null, 2), "utf8");
+    const spacing = mode === "production" ? undefined : 2;
+    await fs.writeFile(targetPath, JSON.stringify(document.document, null, spacing), "utf8");
   }
 
   for (const asset of assets) {

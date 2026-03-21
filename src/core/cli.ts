@@ -6,19 +6,21 @@ import path from "node:path";
 import { projectDefinition } from "../project.js";
 import { runBuild, cleanOutDir } from "./engine.js";
 import { formatError } from "./errors.js";
+import type { BuildMode } from "./types.js";
 
 async function main(): Promise<void> {
   const command = process.argv[2] ?? "build";
   const cwd = process.cwd();
+  const mode = parseMode(process.argv.slice(3), command);
 
   try {
     switch (command) {
       case "build":
-        await runBuild({ cwd, write: true }, projectDefinition.schemaRegistry);
+        await runBuild({ cwd, write: true, mode }, projectDefinition.schemaRegistry);
         console.log("Build complete");
         return;
       case "validate":
-        await runBuild({ cwd, write: false }, projectDefinition.schemaRegistry);
+        await runBuild({ cwd, write: false, mode }, projectDefinition.schemaRegistry);
         console.log("Validation complete");
         return;
       case "clean":
@@ -38,7 +40,7 @@ async function main(): Promise<void> {
 }
 
 async function runDev(cwd: string): Promise<void> {
-  await runBuild({ cwd, write: true }, projectDefinition.schemaRegistry);
+  await runBuild({ cwd, write: true, mode: "development" }, projectDefinition.schemaRegistry);
 
   const outRoot = path.join(cwd, "out");
   const server = http.createServer(async (request, response) => {
@@ -69,13 +71,31 @@ async function runDev(cwd: string): Promise<void> {
     }
     timer = setTimeout(async () => {
       try {
-        await runBuild({ cwd, write: true }, projectDefinition.schemaRegistry);
+        await runBuild({ cwd, write: true, mode: "development" }, projectDefinition.schemaRegistry);
         console.log("Rebuild complete");
       } catch (error) {
         console.error(formatError(error));
       }
     }, 150);
   });
+}
+
+function parseMode(args: string[], command: string): BuildMode {
+  if (command === "dev") {
+    return "development";
+  }
+
+  const modeFlag = args.find((arg) => arg.startsWith("--mode="));
+  if (!modeFlag) {
+    return command === "build" ? "production" : "development";
+  }
+
+  const value = modeFlag.slice("--mode=".length);
+  if (value === "development" || value === "production") {
+    return value;
+  }
+
+  throw new Error(`Invalid mode: ${value}`);
 }
 
 void main();
