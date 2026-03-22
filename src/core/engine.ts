@@ -55,6 +55,37 @@ const CollectionPageSchema = IndexDocumentSchema.extend({
   version: z.string().min(1).optional(),
 });
 
+const CollectionPageReferenceSchema = ReferenceObjectSchema.extend({
+  "@type": z.literal("CollectionPage"),
+});
+
+const RootIndexSchema = CollectionPageSchema.extend({
+  hasPart: z.array(CollectionPageReferenceSchema),
+  about: z.array(CollectionPageReferenceSchema),
+  version: z.string().min(1),
+});
+
+const ResourceCollectionSchema = CollectionPageSchema.extend({
+  hasPart: z.array(ReferenceObjectSchema),
+  about: z.array(CollectionPageReferenceSchema),
+});
+
+const SearchManifestSchema = CollectionPageSchema.extend({
+  hasPart: z.array(CollectionPageReferenceSchema),
+  about: z.array(CollectionPageReferenceSchema).length(1),
+});
+
+const SearchValueIndexSchema = CollectionPageSchema.extend({
+  hasPart: z.array(ReferenceObjectSchema),
+  about: z.array(CollectionPageReferenceSchema).length(1),
+  value: z.string().min(1),
+});
+
+const VersionIndexSchema = CollectionPageSchema.extend({
+  hasPart: z.array(ReferenceObjectSchema),
+  about: z.array(ReferenceObjectSchema).length(1),
+});
+
 export interface BuildOptions {
   cwd: string;
   write: boolean;
@@ -281,18 +312,22 @@ async function generateArtifacts(
 
   const rootDocument = buildRootIndex(config, instances, normalizedDomain);
   claimOutputPath(claims, rootDocument.outputPath, "root-index");
-  validateGeneratedDocument(rootDocument.document, "root-index", CollectionPageSchema);
+  validateGeneratedDocument(rootDocument.document, "root-index", RootIndexSchema);
   documents.push(rootDocument);
 
   for (const [resourceType, instanceGroup] of groupByResourceType(instances)) {
     const collection = buildCollectionIndex(config, resourceType, instanceGroup, normalizedDomain);
     claimOutputPath(claims, collection.outputPath, `collection:${resourceType}`);
-    validateGeneratedDocument(collection.document, `collection:${resourceType}`, CollectionPageSchema);
+    validateGeneratedDocument(collection.document, `collection:${resourceType}`, ResourceCollectionSchema);
     documents.push(collection);
 
     const searchDocuments = buildSearchIndexes(config, resourceType, instanceGroup, normalizedDomain, claims);
     for (const document of searchDocuments) {
-      validateGeneratedDocument(document.document, `search:${resourceType}`, CollectionPageSchema);
+      validateGeneratedDocument(
+        document.document,
+        `search:${resourceType}`,
+        resolveSearchDocumentSchema(document.outputPath),
+      );
       documents.push(document);
     }
   }
@@ -439,10 +474,17 @@ function compileResourceArtifacts(
         "@type": "CollectionPage",
         "@id": `${normalizedDomain}/${instance.resource.resourceType}/${instance.resource.resourceId}/versions`,
         name: `${instance.resource.resourceId} versions`,
+        about: [
+          {
+            "@id": `${normalizedDomain}${resourceUrlPath}`,
+            "@type": resolveJsonLdType(definition.resourceJsonLdType, instance.resource.data),
+            name: getResourceReferenceName(instance),
+          },
+        ],
         hasPart: versionRefs,
       },
     };
-    validateGeneratedDocument(versionIndexDocument.document, versionIndexOutputPath, CollectionPageSchema);
+    validateGeneratedDocument(versionIndexDocument.document, versionIndexOutputPath, VersionIndexSchema);
 
     const latest = instance.versions[0];
     if (!latest) {
@@ -686,6 +728,13 @@ function buildSearchIndexes(
     "@type": "CollectionPage",
     "@id": `${rootDomain}/${resourceType}/search`,
     name: `${resourceType} search`,
+    about: [
+      {
+        "@id": `${rootDomain}/${resourceType}`,
+        "@type": "CollectionPage",
+        name: `${resourceType} collection`,
+      },
+    ],
     hasPart: [],
   };
 
@@ -730,6 +779,13 @@ function buildSearchIndexes(
       "@type": "CollectionPage",
       "@id": attributeId,
       name: `${resourceType} search by ${attribute}`,
+      about: [
+        {
+          "@id": `${rootDomain}/${resourceType}`,
+          "@type": "CollectionPage",
+          name: `${resourceType} collection`,
+        },
+      ],
       hasPart: [],
     };
 
@@ -745,6 +801,13 @@ function buildSearchIndexes(
           "@type": "CollectionPage",
           "@id": `${rootDomain}/${resourceType}/search/${attribute}/${slug}`,
           name: `${resourceType} ${attribute} ${entry.originalValue}`,
+          about: [
+            {
+              "@id": `${rootDomain}/${resourceType}`,
+              "@type": "CollectionPage",
+              name: `${resourceType} collection`,
+            },
+          ],
           value: entry.originalValue,
           hasPart: entry.resources.map((resource) => ({
             "@id": `${rootDomain}/${resourceType}/${resource.resourceId}`,
@@ -839,10 +902,13 @@ function collectPrimitiveIndexValues(value: JsonValue | undefined): Array<string
 }
 
 function buildDocsHtml(config: ProjectConfig, instances: ResourceInstance[], rootDomain: string): string {
-  const collectionLinks = [...groupByResourceType(instances).keys()]
-    .sort()
-    .map((resourceType) => `<li><code>${rootDomain}/${resourceType}</code></li>`)
+  const grouped = [...groupByResourceType(instances).entries()].sort(([left], [right]) => left.localeCompare(right));
+  const collectionLinks = grouped
+    .map(([resourceType]) => `<li><code>${escapeHtml(rootDomain)}/${escapeHtml(resourceType)}</code></li>`)
     .join("");
+  const examples = grouped.map(([resourceType, resourceInstances]) =>
+    buildDocsSection(config, rootDomain, resourceType, resourceInstances)
+  ).join("");
 
   return `<!doctype html>
 <html lang="en">
@@ -855,10 +921,192 @@ function buildDocsHtml(config: ProjectConfig, instances: ResourceInstance[], roo
     <p>Version ${escapeHtml(config.apiVersion)}</p>
     <h2>Root Index</h2>
     <p><code>${escapeHtml(rootDomain)}/</code></p>
+    <h3>Example Response</h3>
+    <pre><code>${escapeHtml(JSON.stringify(buildRootDocsExample(config, rootDomain, grouped.map(([resourceType]) => resourceType)), null, 2))}</code></pre>
     <h2>Collections</h2>
     <ul>${collectionLinks}</ul>
+    ${examples}
   </body>
 </html>`;
+}
+
+function buildDocsSection(
+  config: ProjectConfig,
+  rootDomain: string,
+  resourceType: string,
+  instances: ResourceInstance[],
+): string {
+  const firstInstance = instances[0];
+  const resourceUrl = `${rootDomain}/${resourceType}${firstInstance ? `/${firstInstance.resource.resourceId}` : ""}`;
+  const collectionUrl = `${rootDomain}/${resourceType}`;
+  const searchManifestUrl = `${rootDomain}/${resourceType}/search`;
+  const searchAttributes = config.resourceTypes[resourceType]?.searchAttributes ?? [];
+  const sampleSearchAttribute = searchAttributes[0];
+  const sampleSearchValue = firstInstance && sampleSearchAttribute
+    ? firstSearchValue(getPathValue(firstInstance.resource.data, sampleSearchAttribute))
+    : undefined;
+  const searchValueUrl = sampleSearchAttribute && sampleSearchValue
+    ? `${rootDomain}/${resourceType}/search/${sampleSearchAttribute}/${toSearchSlug(sampleSearchValue)}`
+    : undefined;
+  const versionUrl = firstInstance?.versions[0]
+    ? `${rootDomain}/${resourceType}/${firstInstance.resource.resourceId}/versions/${firstInstance.versions[0].versionId}`
+    : undefined;
+
+  const sections = [
+    renderDocsExample("Collection Index", collectionUrl, buildCollectionDocsExample(rootDomain, resourceType, instances)),
+    renderDocsExample(
+      "Resource Document",
+      resourceUrl,
+      firstInstance ? firstInstance.resource.data : { note: "No resource example available" },
+    ),
+    versionUrl
+      ? renderDocsExample(
+          "Version Document",
+          versionUrl,
+          {
+            "@context": "https://schema.org",
+            "@type": getVersionReferenceType(firstInstance),
+            "@id": versionUrl,
+            version: firstInstance?.versions[0]?.versionId ?? "",
+          },
+        )
+      : "",
+    searchAttributes.length > 0
+      ? renderDocsExample(
+          "Search Manifest",
+          searchManifestUrl,
+          buildSearchManifestDocsExample(rootDomain, resourceType, searchAttributes),
+        )
+      : "",
+    searchValueUrl && sampleSearchAttribute && sampleSearchValue && firstInstance
+      ? renderDocsExample(
+          "Search Value Index",
+          searchValueUrl,
+          buildSearchValueDocsExample(rootDomain, resourceType, sampleSearchAttribute, sampleSearchValue, firstInstance),
+        )
+      : "",
+  ].filter(Boolean).join("");
+
+  return `
+    <h2>${escapeHtml(resourceType)}</h2>
+    <p>This section describes collection indexes, resource documents, version documents, and search indexes for <code>${escapeHtml(resourceType)}</code>.</p>
+    ${sections}`;
+}
+
+function renderDocsExample(title: string, url: string, response: JsonObject): string {
+  return `
+    <h3>${escapeHtml(title)}</h3>
+    <p>Example Request: <code>${escapeHtml(url)}</code></p>
+    <p>Example Response:</p>
+    <pre><code>${escapeHtml(JSON.stringify(response, null, 2))}</code></pre>`;
+}
+
+function buildRootDocsExample(config: ProjectConfig, rootDomain: string, resourceTypes: string[]): JsonObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${rootDomain}/`,
+    name: config.apiName,
+    version: config.apiVersion,
+    hasPart: resourceTypes.map((resourceType) => ({
+      "@id": `${rootDomain}/${resourceType}`,
+      "@type": "CollectionPage",
+      name: resourceType,
+    })),
+  };
+}
+
+function buildCollectionDocsExample(rootDomain: string, resourceType: string, instances: ResourceInstance[]): JsonObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${rootDomain}/${resourceType}`,
+    name: `${resourceType} collection`,
+    hasPart: instances.map((instance) => ({
+      "@id": `${rootDomain}/${resourceType}/${instance.resource.resourceId}`,
+      "@type": getResourceReferenceType(instance),
+      name: getResourceReferenceName(instance),
+    })),
+  };
+}
+
+function buildSearchManifestDocsExample(rootDomain: string, resourceType: string, attributes: string[]): JsonObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${rootDomain}/${resourceType}/search`,
+    name: `${resourceType} search`,
+    about: [
+      {
+        "@id": `${rootDomain}/${resourceType}`,
+        "@type": "CollectionPage",
+        name: `${resourceType} collection`,
+      },
+    ],
+    hasPart: attributes.map((attribute) => ({
+      "@id": `${rootDomain}/${resourceType}/search/${attribute}`,
+      "@type": "CollectionPage",
+      name: attribute,
+    })),
+  };
+}
+
+function buildSearchValueDocsExample(
+  rootDomain: string,
+  resourceType: string,
+  attribute: string,
+  value: string,
+  instance: ResourceInstance,
+): JsonObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${rootDomain}/${resourceType}/search/${attribute}/${toSearchSlug(value)}`,
+    name: `${resourceType} ${attribute} ${value}`,
+    about: [
+      {
+        "@id": `${rootDomain}/${resourceType}`,
+        "@type": "CollectionPage",
+        name: `${resourceType} collection`,
+      },
+    ],
+    value,
+    hasPart: [
+      {
+        "@id": `${rootDomain}/${resourceType}/${instance.resource.resourceId}`,
+        "@type": getResourceReferenceType(instance),
+        name: getResourceReferenceName(instance),
+      },
+    ],
+  };
+}
+
+function getVersionReferenceType(instance: ResourceInstance | undefined): string {
+  const version = instance?.versions[0];
+  if (!version) {
+    return "CreativeWork";
+  }
+  const declaredType = version.data.type ?? version.data["@type"];
+  return typeof declaredType === "string" ? declaredType : "CreativeWork";
+}
+
+function firstSearchValue(value: JsonValue | undefined): string | undefined {
+  const primitives = collectPrimitiveIndexValues(value);
+  if (primitives.length === 0) {
+    return undefined;
+  }
+  return String(primitives[0]);
+}
+
+function resolveSearchDocumentSchema(outputPath: string): z.ZodType<JsonObject> {
+  if (outputPath.endsWith("/search/index.json")) {
+    return SearchManifestSchema;
+  }
+  const segments = outputPath.split("/");
+  if (segments.includes("search")) {
+    return segments.length === 5 ? SearchValueIndexSchema : SearchManifestSchema;
+  }
+  return SearchManifestSchema;
 }
 
 function escapeHtml(value: string): string {

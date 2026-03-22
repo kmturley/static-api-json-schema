@@ -402,6 +402,163 @@ test("fails with detailed diagnostics for reserved path segments", async () => {
   );
 });
 
+test("allows circular references without recursive compile loops", async () => {
+  const circularRegistry: SchemaRegistry = {
+    nodes: {
+      resourceSchema: z.object({
+        type: z.literal("Thing"),
+        name: z.string(),
+        related: z.string(),
+      }),
+      resourceJsonLdType: "Thing",
+      allowedResourceTypes: ["Thing"],
+      compileResource({ resource, helper }) {
+        return helper.makeJsonLdDocument("Thing", {
+          name: resource.data.name as string,
+          related: helper.resolveInternalReference(resource.data.related as string),
+        });
+      },
+    },
+  };
+
+  const cwd = await makeFixture({
+    "resources/nodes/alpha/index.yaml": "type: Thing\nname: Alpha\nrelated: /nodes/beta\n",
+    "resources/nodes/beta/index.yaml": "type: Thing\nname: Beta\nrelated: /nodes/alpha\n",
+  });
+
+  await runBuild(
+    {
+      cwd,
+      write: true,
+      mode: "development",
+      config: makeTestConfig({ nodes: {} }),
+    },
+    circularRegistry,
+  );
+
+  const alpha = JSON.parse(await fs.readFile(path.join(cwd, "out/nodes/alpha/index.json"), "utf8"));
+  const beta = JSON.parse(await fs.readFile(path.join(cwd, "out/nodes/beta/index.json"), "utf8"));
+
+  assert.equal(alpha.related["@id"], "https://example.com/nodes/beta");
+  assert.equal(beta.related["@id"], "https://example.com/nodes/alpha");
+});
+
+test("fails cleanly when the configured resources root is not a readable directory", async () => {
+  const cwd = await makeFixture({
+    resources: "not a directory",
+  });
+
+  await assert.rejects(
+    () =>
+      runBuild(
+        {
+          cwd,
+          write: false,
+          mode: "development",
+          config: {
+            ...makeTestConfig(),
+            resourcesRoot: "resources",
+          },
+        },
+        registry,
+      ),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("Required source directory cannot be read"),
+  );
+});
+
+test("generates consistent root, collection, search, and version index documents", async () => {
+  const cwd = await makeFixture({
+    "resources/publishers/acme/index.yaml": "type: Organization\nname: Acme Games\ndescription: Publisher\nurl: https://example.com/publishers/acme\n",
+    "resources/games/test/index.yaml": [
+      "type: SoftwareApplication",
+      "name: Test Game",
+      "description: Example game",
+      "genre: Action",
+      "publisher: /publishers/acme",
+      "url: https://example.com/games/test",
+      "",
+    ].join("\n"),
+    "resources/games/test/versions/1.0.0.yaml": [
+      "type: SoftwareSourceCode",
+      "version: 1.0.0",
+      "datePublished: 2024-01-01",
+      "releaseNotes: First release",
+      "files:",
+      "  - name: Test Game macOS",
+      "    path: /games/test/assets/test-game-1.0.0.zip",
+      "    encodingFormat: application/zip",
+      "    license: https://spdx.org/licenses/CC0-1.0.html",
+      "",
+    ].join("\n"),
+    "resources/games/test/assets/test-game-1.0.0.zip": "zip payload",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig(), mode: "development" }, registry);
+
+  const rootIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/index.json"), "utf8"));
+  assert.equal(rootIndex.hasPart[0]["@type"], "CollectionPage");
+  assert.equal(rootIndex.about[0]["@id"], "https://example.com/games/search");
+
+  const collectionIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/games/index.json"), "utf8"));
+  assert.equal(collectionIndex.about[0]["@id"], "https://example.com/games/search");
+  assert.equal(collectionIndex.hasPart[0]["@id"], "https://example.com/games/test");
+
+  const searchManifest = JSON.parse(await fs.readFile(path.join(cwd, "out/games/search/index.json"), "utf8"));
+  assert.equal(searchManifest.about[0]["@id"], "https://example.com/games");
+  assert.equal(searchManifest.hasPart[0]["@id"], "https://example.com/games/search/genre");
+
+  const searchValueIndex = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/games/search/genre/action/index.json"), "utf8"),
+  );
+  assert.equal(searchValueIndex.about[0]["@id"], "https://example.com/games");
+  assert.equal(searchValueIndex.value, "Action");
+
+  const versionIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/games/test/versions/index.json"), "utf8"));
+  assert.equal(versionIndex.about[0]["@id"], "https://example.com/games/test");
+  assert.equal(versionIndex.hasPart[0]["@type"], "SoftwareSourceCode");
+});
+
+test("generates documentation with example requests and example responses", async () => {
+  const cwd = await makeFixture({
+    "resources/publishers/acme/index.yaml": "type: Organization\nname: Acme Games\ndescription: Publisher\nurl: https://example.com/publishers/acme\n",
+    "resources/games/test/index.yaml": [
+      "type: SoftwareApplication",
+      "name: Test Game",
+      "description: Example game",
+      "genre: Action",
+      "publisher: /publishers/acme",
+      "url: https://example.com/games/test",
+      "tags:",
+      "  - action",
+      "",
+    ].join("\n"),
+    "resources/games/test/versions/1.0.0.yaml": [
+      "type: SoftwareSourceCode",
+      "version: 1.0.0",
+      "datePublished: 2024-01-01",
+      "releaseNotes: First release",
+      "files:",
+      "  - name: Test Game macOS",
+      "    path: /games/test/assets/test-game-1.0.0.zip",
+      "    encodingFormat: application/zip",
+      "    license: https://spdx.org/licenses/CC0-1.0.html",
+      "",
+    ].join("\n"),
+    "resources/games/test/assets/test-game-1.0.0.zip": "zip payload",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig(), mode: "development" }, registry);
+
+  const docsHtml = await fs.readFile(path.join(cwd, "out/docs/index.html"), "utf8");
+  assert.match(docsHtml, /Example Request:/);
+  assert.match(docsHtml, /Example Response:/);
+  assert.match(docsHtml, /https:\/\/example\.com\/games\/test/);
+  assert.match(docsHtml, /https:\/\/example\.com\/games\/test\/versions\/1\.0\.0/);
+  assert.match(docsHtml, /https:\/\/example\.com\/games\/search/);
+});
+
 async function makeFixture(files: Record<string, string>): Promise<string> {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "static-api-json-schema-"));
   for (const [relativePath, content] of Object.entries(files)) {
