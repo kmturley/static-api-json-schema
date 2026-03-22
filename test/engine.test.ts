@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -7,7 +6,8 @@ import assert from "node:assert/strict";
 import { z } from "zod";
 
 import { runBuild } from "../src/core/engine.js";
-import type { JsonObject, ProjectConfig, SchemaRegistry } from "../src/core/types.js";
+import type { JsonObject, SchemaRegistry } from "../src/core/types.js";
+import { makeFixture, makeTestConfig } from "./helpers.js";
 
 const registry: SchemaRegistry = {
   games: {
@@ -558,28 +558,3 @@ test("generates documentation with example requests and example responses", asyn
   assert.match(docsHtml, /https:\/\/example\.com\/games\/test\/versions\/1\.0\.0/);
   assert.match(docsHtml, /https:\/\/example\.com\/games\/search/);
 });
-
-async function makeFixture(files: Record<string, string>): Promise<string> {
-  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "static-api-json-schema-"));
-  for (const [relativePath, content] of Object.entries(files)) {
-    const fullPath = path.join(cwd, relativePath);
-    await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, content, "utf8");
-  }
-  return cwd;
-}
-
-function makeTestConfig(resourceTypes: ProjectConfig["resourceTypes"] = {
-  games: {
-    searchAttributes: ["genre"],
-  },
-  publishers: {},
-}): ProjectConfig {
-  return {
-    apiName: "Example API",
-    apiVersion: "1.0.0",
-    rootDomain: "https://example.com",
-    resourcesRoot: "resources",
-    resourceTypes,
-  };
-}

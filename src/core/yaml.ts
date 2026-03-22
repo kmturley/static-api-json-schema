@@ -82,7 +82,13 @@ function containsAlias(node: ParsedNode | null | undefined): boolean {
     return false;
   }
 
-  if ((node as { type?: string }).type === "ALIAS") {
+  const aliasOrAnchorNode = node as { type?: string; anchor?: string; constructor?: { name?: string } };
+
+  if (aliasOrAnchorNode.type === "ALIAS" || aliasOrAnchorNode.constructor?.name === "Alias") {
+    return true;
+  }
+
+  if (typeof aliasOrAnchorNode.anchor === "string" && aliasOrAnchorNode.anchor.length > 0) {
     return true;
   }
 
