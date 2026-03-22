@@ -6,13 +6,8 @@ import assert from "node:assert/strict";
 import { z } from "zod";
 
 import { discoverSources } from "../src/core/discovery.js";
-import { __test as engineTestHelpers, runBuild } from "../src/core/engine.js";
-import {
-  assertSafeResourceSegment,
-  compareSemverDesc,
-  ensureInsideRoot,
-  toSearchSlug,
-} from "../src/core/utils.js";
+import { __test as engineTestHelpers, runBuild, syncBuildResult } from "../src/core/engine.js";
+import { assertSafeResourceSegment, compareSemverDesc, ensureInsideRoot, toSearchSlug } from "../src/core/utils.js";
 import type { GeneratedAsset, ProjectConfig, SchemaRegistry } from "../src/core/types.js";
 import { loadYamlFile } from "../src/core/yaml.js";
 import { makeFixture, makeTestConfig } from "./helpers.js";
@@ -64,9 +59,7 @@ test("rejects invalid path casing during discovery", async () => {
 
   await assert.rejects(
     () => discoverSources(cwd, makeTestConfig({ games: {} })),
-    (error: unknown) =>
-      error instanceof Error &&
-      error.message.includes("lowercase ASCII letters"),
+    (error: unknown) => error instanceof Error && error.message.includes("lowercase ASCII letters"),
   );
 });
 
@@ -106,10 +99,7 @@ test("detects output path collisions with detailed metadata", () => {
   assert.throws(
     () => engineTestHelpers.claimOutputPath(claims, "games/test/index.json", "resources/games/other/index.yaml"),
     (error: unknown) =>
-      error instanceof Error &&
-      "generatedPath" in error &&
-      "conflictingSource" in error &&
-      "originalValue" in error,
+      error instanceof Error && "generatedPath" in error && "conflictingSource" in error && "originalValue" in error,
   );
 });
 
@@ -131,10 +121,7 @@ test("detects search normalization collisions with detailed metadata", () => {
         originalValue: "C++",
         normalizedValue: "c",
       }),
-    (error: unknown) =>
-      error instanceof Error &&
-      "normalizedValue" in error &&
-      "conflictingSource" in error,
+    (error: unknown) => error instanceof Error && "normalizedValue" in error && "conflictingSource" in error,
   );
 });
 
@@ -239,10 +226,14 @@ test("delete and modify rebuild flows update generated output", async () => {
   let collection = JSON.parse(await fs.readFile(path.join(cwd, "out/games/index.json"), "utf8"));
   assert.equal(collection.hasPart.length, 2);
 
-  await fs.writeFile(path.join(cwd, "resources/games/alpha/index.yaml"), "type: SoftwareApplication\nname: Alpha Prime\n", "utf8");
+  await fs.writeFile(
+    path.join(cwd, "resources/games/alpha/index.yaml"),
+    "type: SoftwareApplication\nname: Alpha Prime\n",
+    "utf8",
+  );
   await runBuild({ cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" }, registry);
 
-  let alpha = JSON.parse(await fs.readFile(path.join(cwd, "out/games/alpha/index.json"), "utf8"));
+  const alpha = JSON.parse(await fs.readFile(path.join(cwd, "out/games/alpha/index.json"), "utf8"));
   assert.equal(alpha.name, "Alpha Prime");
 
   await fs.rm(path.join(cwd, "resources/games/beta"), { recursive: true, force: true });
@@ -251,4 +242,68 @@ test("delete and modify rebuild flows update generated output", async () => {
   collection = JSON.parse(await fs.readFile(path.join(cwd, "out/games/index.json"), "utf8"));
   assert.equal(collection.hasPart.length, 1);
   await assert.rejects(() => fs.readFile(path.join(cwd, "out/games/beta/index.json"), "utf8"));
+});
+
+test("incremental sync rewrites only changed outputs and removes deleted outputs", async () => {
+  const registry: SchemaRegistry = {
+    games: {
+      resourceSchema: z.object({
+        type: z.literal("SoftwareApplication"),
+        name: z.string(),
+      }),
+      resourceJsonLdType: "SoftwareApplication",
+      allowedResourceTypes: ["SoftwareApplication"],
+      compileResource({ resource, helper }) {
+        return helper.makeJsonLdDocument("SoftwareApplication", {
+          name: resource.data.name as string,
+        });
+      },
+    },
+  };
+
+  const cwd = await makeFixture({
+    "resources/games/alpha/index.yaml": "type: SoftwareApplication\nname: Alpha\n",
+    "resources/games/beta/index.yaml": "type: SoftwareApplication\nname: Beta\n",
+  });
+
+  const initial = await runBuild(
+    { cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" },
+    registry,
+  );
+
+  const alphaOut = path.join(cwd, "out/games/alpha/index.json");
+  const betaOut = path.join(cwd, "out/games/beta/index.json");
+  const beforeAlpha = await fs.stat(alphaOut);
+  const beforeBeta = await fs.stat(betaOut);
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await fs.writeFile(
+    path.join(cwd, "resources/games/alpha/index.yaml"),
+    "type: SoftwareApplication\nname: Alpha Prime\n",
+    "utf8",
+  );
+
+  const modified = await runBuild(
+    { cwd, write: false, config: makeTestConfig({ games: {} }), mode: "development" },
+    registry,
+  );
+  await syncBuildResult(cwd, initial, modified);
+
+  const afterAlpha = await fs.stat(alphaOut);
+  const afterBeta = await fs.stat(betaOut);
+  assert.ok(afterAlpha.mtimeMs > beforeAlpha.mtimeMs);
+  assert.equal(afterBeta.mtimeMs, beforeBeta.mtimeMs);
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await fs.rm(path.join(cwd, "resources/games/beta"), { recursive: true, force: true });
+
+  const deleted = await runBuild(
+    { cwd, write: false, config: makeTestConfig({ games: {} }), mode: "development" },
+    registry,
+  );
+  await syncBuildResult(cwd, modified, deleted);
+
+  await assert.rejects(() => fs.readFile(betaOut, "utf8"));
+  const alphaContent = JSON.parse(await fs.readFile(alphaOut, "utf8"));
+  assert.equal(alphaContent.name, "Alpha Prime");
 });

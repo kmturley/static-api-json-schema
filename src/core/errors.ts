@@ -87,7 +87,5 @@ export function formatError(error: unknown): string {
     details.push(`referencePath=${error.referencePath}`);
   }
 
-  return details.length > 0
-    ? `${error.message} (${details.join(", ")})`
-    : error.message;
+  return details.length > 0 ? `${error.message} (${details.join(", ")})` : error.message;
 }

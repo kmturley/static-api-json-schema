@@ -31,11 +31,7 @@ export function toSearchSlug(input: string): string {
   return normalized;
 }
 
-export function assertSafeResourceSegment(
-  value: string,
-  label: string,
-  filePath: string,
-): void {
+export function assertSafeResourceSegment(value: string, label: string, filePath: string): void {
   if (!RESOURCE_SEGMENT_PATTERN.test(value)) {
     throw new BuildError(`${label} must contain only lowercase ASCII letters, digits, and hyphens`, {
       code: "INVALID_PATH_SEGMENT",
@@ -55,14 +51,11 @@ export function assertSafeResourceSegment(
 
 export function assertSafeVersionSegment(value: string, filePath: string): void {
   if (!VERSION_SEGMENT_PATTERN.test(value)) {
-    throw new BuildError(
-      "Version identifier must contain only lowercase ASCII letters, digits, periods, and hyphens",
-      {
-        code: "INVALID_VERSION_SEGMENT",
-        filePath,
-        originalValue: value,
-      },
-    );
+    throw new BuildError("Version identifier must contain only lowercase ASCII letters, digits, periods, and hyphens", {
+      code: "INVALID_VERSION_SEGMENT",
+      filePath,
+      originalValue: value,
+    });
   }
   if (RESERVED_SEGMENTS.has(value)) {
     throw new BuildError("Version identifier collides with a reserved generated path segment", {
@@ -159,10 +152,7 @@ export function ensureInsideRoot(rootPath: string, targetPath: string, filePath:
   const resolvedRoot = path.resolve(rootPath);
   const resolvedTarget = path.resolve(targetPath);
 
-  if (
-    resolvedTarget !== resolvedRoot &&
-    !resolvedTarget.startsWith(`${resolvedRoot}${path.sep}`)
-  ) {
+  if (resolvedTarget !== resolvedRoot && !resolvedTarget.startsWith(`${resolvedRoot}${path.sep}`)) {
     throw new BuildError("Path escapes the resources root", {
       code: "PATH_ESCAPE",
       filePath,

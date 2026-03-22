@@ -68,7 +68,8 @@ const registry: SchemaRegistry = {
 test("builds resources, versions, latest alias, and search indexes", async () => {
   const cwd = await makeFixture({
     "resources/publishers/acme/index.yaml": "type: Organization\nname: Acme Games\n",
-    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\ngenre: Action\npublisher: /publishers/acme\n",
+    "resources/games/test/index.yaml":
+      "type: SoftwareApplication\nname: Test Game\ngenre: Action\npublisher: /publishers/acme\n",
     "resources/games/test/versions/1.2.0.yaml": "type: SoftwareSourceCode\nversion: 1.2.0\ndatePublished: 2024-01-01\n",
     "resources/games/test/versions/1.1.0.yaml": "type: SoftwareSourceCode\nversion: 1.1.0\ndatePublished: 2023-01-01\n",
   });
@@ -78,9 +79,7 @@ test("builds resources, versions, latest alias, and search indexes", async () =>
   assert.ok(result.documents.some((document) => document.outputPath === "games/test/versions/latest/index.json"));
   assert.ok(result.documents.some((document) => document.outputPath === "games/search/genre/action/index.json"));
 
-  const latest = JSON.parse(
-    await fs.readFile(path.join(cwd, "out/games/test/versions/latest/index.json"), "utf8"),
-  );
+  const latest = JSON.parse(await fs.readFile(path.join(cwd, "out/games/test/versions/latest/index.json"), "utf8"));
   assert.equal(latest["@id"], "https://example.com/games/test/versions/latest");
 
   const rootIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/index.json"), "utf8"));
@@ -111,11 +110,11 @@ test("writes formatted JSON in development mode and minified JSON in production 
 
   await runBuild({ cwd, write: true, config: makeTestConfig({ publishers: {} }), mode: "development" }, registry);
   const developmentJson = await fs.readFile(path.join(cwd, "out/publishers/acme/index.json"), "utf8");
-  assert.match(developmentJson, /\n  "@context":/);
+  assert.match(developmentJson, /\n {2}"@context":/);
 
   await runBuild({ cwd, write: true, config: makeTestConfig({ publishers: {} }), mode: "production" }, registry);
   const productionJson = await fs.readFile(path.join(cwd, "out/publishers/acme/index.json"), "utf8");
-  assert.doesNotMatch(productionJson, /\n  "@context":/);
+  assert.doesNotMatch(productionJson, /\n {2}"@context":/);
   assert.ok(!productionJson.includes("\n"));
 });
 
@@ -154,7 +153,7 @@ test("fails with context when a referenced local asset does not exist", async ()
         return helper.makeJsonLdDocumentAt(helper.versionUrl(version.versionId), "SoftwareSourceCode", {
           version: version.data.version as string,
           file: helper.copyAsset(
-            { path: ((version.data.file as JsonObject).path as string) },
+            { path: (version.data.file as JsonObject).path as string },
             {
               resourceType: version.resourceType,
               resourceId: version.resourceId,
@@ -168,15 +167,14 @@ test("fails with context when a referenced local asset does not exist", async ()
 
   const cwd = await makeFixture({
     "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\n",
-    "resources/games/test/versions/1.0.0.yaml": "type: SoftwareSourceCode\nversion: 1.0.0\nfile:\n  path: /games/test/files/missing.zip\n",
+    "resources/games/test/versions/1.0.0.yaml":
+      "type: SoftwareSourceCode\nversion: 1.0.0\nfile:\n  path: /games/test/files/missing.zip\n",
   });
 
   await assert.rejects(
     () => runBuild({ cwd, write: false, config: makeTestConfig({ games: {} }), mode: "development" }, assetRegistry),
     (error: unknown) =>
-      error instanceof Error &&
-      error.message.includes("Referenced local asset does not exist") &&
-      "fieldPath" in error,
+      error instanceof Error && error.message.includes("Referenced local asset does not exist") && "fieldPath" in error,
   );
 });
 
@@ -203,11 +201,12 @@ test("creates empty attribute search indexes when no resources match", async () 
     "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\n",
   });
 
-  await runBuild({ cwd, write: true, config: makeTestConfig({ games: { searchAttributes: ["genre"] } }), mode: "development" }, registry);
-
-  const attributeIndex = JSON.parse(
-    await fs.readFile(path.join(cwd, "out/games/search/genre/index.json"), "utf8"),
+  await runBuild(
+    { cwd, write: true, config: makeTestConfig({ games: { searchAttributes: ["genre"] } }), mode: "development" },
+    registry,
   );
+
+  const attributeIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/games/search/genre/index.json"), "utf8"));
   assert.deepEqual(attributeIndex.hasPart, []);
 });
 
@@ -234,10 +233,11 @@ test("fails when a declared resource type is incompatible with its directory res
 
   await assert.rejects(
     () =>
-      runBuild({ cwd, write: false, config: makeTestConfig({ publishers: {} }), mode: "development" }, mismatchRegistry),
-    (error: unknown) =>
-      error instanceof Error &&
-      error.message.includes("Declared resource type is incompatible"),
+      runBuild(
+        { cwd, write: false, config: makeTestConfig({ publishers: {} }), mode: "development" },
+        mismatchRegistry,
+      ),
+    (error: unknown) => error instanceof Error && error.message.includes("Declared resource type is incompatible"),
   );
 });
 
@@ -287,7 +287,7 @@ test("indexes arrays, numbers, booleans and ignores empty, missing, and mixed va
       "  - blue",
       "rating: 5",
       "featured: true",
-      "emptyLabel: \"\"",
+      'emptyLabel: ""',
       "maybeNull: null",
       "mixed:",
       "  - valid",
@@ -316,7 +316,9 @@ test("indexes arrays, numbers, booleans and ignores empty, missing, and mixed va
   const ratingIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/items/search/rating/5/index.json"), "utf8"));
   assert.equal(ratingIndex.value, "5");
 
-  const featuredIndex = JSON.parse(await fs.readFile(path.join(cwd, "out/items/search/featured/true/index.json"), "utf8"));
+  const featuredIndex = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/items/search/featured/true/index.json"), "utf8"),
+  );
   assert.equal(featuredIndex.value, "true");
 
   const emptyAttributeIndex = JSON.parse(
@@ -462,15 +464,14 @@ test("fails cleanly when the configured resources root is not a readable directo
         },
         registry,
       ),
-    (error: unknown) =>
-      error instanceof Error &&
-      error.message.includes("Required source directory cannot be read"),
+    (error: unknown) => error instanceof Error && error.message.includes("Required source directory cannot be read"),
   );
 });
 
 test("generates consistent root, collection, search, and version index documents", async () => {
   const cwd = await makeFixture({
-    "resources/publishers/acme/index.yaml": "type: Organization\nname: Acme Games\ndescription: Publisher\nurl: https://example.com/publishers/acme\n",
+    "resources/publishers/acme/index.yaml":
+      "type: Organization\nname: Acme Games\ndescription: Publisher\nurl: https://example.com/publishers/acme\n",
     "resources/games/test/index.yaml": [
       "type: SoftwareApplication",
       "name: Test Game",
@@ -522,7 +523,8 @@ test("generates consistent root, collection, search, and version index documents
 
 test("generates documentation with example requests and example responses", async () => {
   const cwd = await makeFixture({
-    "resources/publishers/acme/index.yaml": "type: Organization\nname: Acme Games\ndescription: Publisher\nurl: https://example.com/publishers/acme\n",
+    "resources/publishers/acme/index.yaml":
+      "type: Organization\nname: Acme Games\ndescription: Publisher\nurl: https://example.com/publishers/acme\n",
     "resources/games/test/index.yaml": [
       "type: SoftwareApplication",
       "name: Test Game",
@@ -562,7 +564,8 @@ test("generates documentation with example requests and example responses", asyn
 test("publishes machine-readable type definitions for generated document shapes", async () => {
   const cwd = await makeFixture({
     "resources/publishers/acme/index.yaml": "type: Organization\nname: Acme Games\n",
-    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\ngenre: Action\npublisher: /publishers/acme\n",
+    "resources/games/test/index.yaml":
+      "type: SoftwareApplication\nname: Test Game\ngenre: Action\npublisher: /publishers/acme\n",
     "resources/games/test/versions/1.0.0.yaml": "type: SoftwareSourceCode\nversion: 1.0.0\ndatePublished: 2024-01-01\n",
   });
 

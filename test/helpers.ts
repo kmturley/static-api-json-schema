@@ -14,12 +14,14 @@ export async function makeFixture(files: Record<string, string>): Promise<string
   return cwd;
 }
 
-export function makeTestConfig(resourceTypes: ProjectConfig["resourceTypes"] = {
-  games: {
-    searchAttributes: ["genre"],
+export function makeTestConfig(
+  resourceTypes: ProjectConfig["resourceTypes"] = {
+    games: {
+      searchAttributes: ["genre"],
+    },
+    publishers: {},
   },
-  publishers: {},
-}): ProjectConfig {
+): ProjectConfig {
   return {
     apiName: "Example API",
     apiVersion: "1.0.0",

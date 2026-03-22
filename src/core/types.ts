@@ -107,10 +107,7 @@ export interface CompileContext<R extends JsonObject, V extends JsonObject> {
   helper: CompileHelpers;
 }
 
-export interface ResourceTypeDefinition<
-  R extends JsonObject = JsonObject,
-  V extends JsonObject = JsonObject,
-> {
+export interface ResourceTypeDefinition<R extends JsonObject = JsonObject, V extends JsonObject = JsonObject> {
   resourceSchema: z.ZodType<R>;
   versionSchema?: z.ZodType<V>;
   resourceJsonLdType: string | ((resource: R) => string);

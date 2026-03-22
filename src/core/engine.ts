@@ -25,15 +25,7 @@ import type {
   SchemaRegistry,
 } from "./types.js";
 import { loadYamlFile } from "./yaml.js";
-import {
-  compareSemverDesc,
-  ensureInsideRoot,
-  maybeString,
-  normalizeRootDomain,
-  pathToPosix,
-  toRegularCharacterSort,
-  toSearchSlug,
-} from "./utils.js";
+import { compareSemverDesc, ensureInsideRoot, maybeString, normalizeRootDomain, toSearchSlug } from "./utils.js";
 
 const ReferenceObjectSchema = z.object({
   "@id": z.url(),
@@ -91,6 +83,7 @@ export interface BuildOptions {
   write: boolean;
   config?: ProjectConfig;
   mode?: BuildMode;
+  clean?: boolean;
 }
 
 export interface BuildResult {
@@ -103,7 +96,7 @@ export interface BuildResult {
 type JsonSchemaDocument = JsonObject;
 
 export async function runBuild(options: BuildOptions, registry: SchemaRegistry): Promise<BuildResult> {
-  const config = options.config ?? await loadProjectConfig();
+  const config = options.config ?? (await loadProjectConfig());
   const mode = options.mode ?? "development";
   const instances = await discoverSources(options.cwd, config);
   const loadedInstances = await loadAndValidateInstances(instances, registry);
@@ -112,11 +105,18 @@ export async function runBuild(options: BuildOptions, registry: SchemaRegistry):
   result.mode = mode;
 
   if (options.write) {
-    await cleanOutDir(options.cwd);
+    if (options.clean !== false) {
+      await cleanOutDir(options.cwd);
+    }
     await writeArtifacts(options.cwd, result.documents, result.assets, result.config, mode);
   }
 
   return result;
+}
+
+export async function syncBuildResult(cwd: string, previous: BuildResult, next: BuildResult): Promise<void> {
+  await removeObsoleteArtifacts(cwd, previous, next);
+  await writeChangedArtifacts(cwd, previous, next);
 }
 
 export async function cleanOutDir(cwd: string): Promise<void> {
@@ -149,12 +149,7 @@ async function loadAndValidateInstances(
       });
     }
 
-    validateDeclaredType(
-      parsedResource.data,
-      definition.allowedResourceTypes,
-      instance.resource.filePath,
-      "resource",
-    );
+    validateDeclaredType(parsedResource.data, definition.allowedResourceTypes, instance.resource.filePath, "resource");
 
     const versions: LoadedVersionSource[] = [];
     for (const version of instance.versions) {
@@ -178,12 +173,7 @@ async function loadAndValidateInstances(
         });
       }
 
-      validateDeclaredType(
-        parsedVersion.data,
-        definition.allowedVersionTypes,
-        version.filePath,
-        "version",
-      );
+      validateDeclaredType(parsedVersion.data, definition.allowedVersionTypes, version.filePath, "version");
 
       versions.push({ ...version, data: parsedVersion.data });
     }
@@ -408,10 +398,12 @@ function compileResourceArtifacts(
       return `${normalizedDomain}/${instance.resource.resourceType}/${instance.resource.resourceId}/versions/${versionId}`;
     },
     latestVersionReference() {
-      return latestVersion ? makeReferenceObject(
-        `${normalizedDomain}/${latestVersion.resourceType}/${latestVersion.resourceId}/versions/${latestVersion.versionId}`,
-        resolveJsonLdType(definition.versionJsonLdType ?? definition.resourceJsonLdType, latestVersion.data),
-      ) : undefined;
+      return latestVersion
+        ? makeReferenceObject(
+            `${normalizedDomain}/${latestVersion.resourceType}/${latestVersion.resourceId}/versions/${latestVersion.versionId}`,
+            resolveJsonLdType(definition.versionJsonLdType ?? definition.resourceJsonLdType, latestVersion.data),
+          )
+        : undefined;
     },
     versionReferences() {
       return versionRefs;
@@ -556,9 +548,7 @@ function copyAsset(
   claims: Map<string, string>,
   assets: GeneratedAsset[],
   asset: string | AssetInput,
-  owner:
-    | { resourceType: string; resourceId: string }
-    | { resourceType: string; resourceId: string; versionId: string },
+  owner: { resourceType: string; resourceId: string } | { resourceType: string; resourceId: string; versionId: string },
   filePath: string,
 ): string | JsonObject {
   const assetObject = typeof asset === "string" ? { path: asset } : asset;
@@ -588,9 +578,10 @@ function copyAsset(
   }
 
   const assetFileName = path.basename(sourcePath);
-  const outputPath = "versionId" in owner
-    ? `${owner.resourceType}/${owner.resourceId}/versions/${owner.versionId}/assets/${assetFileName}`
-    : `${owner.resourceType}/${owner.resourceId}/assets/${assetFileName}`;
+  const outputPath =
+    "versionId" in owner
+      ? `${owner.resourceType}/${owner.resourceId}/versions/${owner.versionId}/assets/${assetFileName}`
+      : `${owner.resourceType}/${owner.resourceId}/assets/${assetFileName}`;
 
   claimOutputPath(claims, outputPath, sourcePath);
 
@@ -659,11 +650,7 @@ function claimSearchValueNormalization<T>(
   return entry;
 }
 
-function buildRootIndex(
-  config: ProjectConfig,
-  instances: ResourceInstance[],
-  rootDomain: string,
-): GeneratedDocument {
+function buildRootIndex(config: ProjectConfig, instances: ResourceInstance[], rootDomain: string): GeneratedDocument {
   const resourceTypes = groupByResourceType(instances);
   const searchManifestLinks = [...resourceTypes.keys()]
     .filter((resourceType) => (config.resourceTypes[resourceType]?.searchAttributes ?? []).length > 0)
@@ -712,15 +699,16 @@ function buildCollectionIndex(
     a.resource.resourceId < b.resource.resourceId ? -1 : a.resource.resourceId > b.resource.resourceId ? 1 : 0,
   );
 
-  const searchManifestLinks = (config.resourceTypes[resourceType]?.searchAttributes ?? []).length > 0
-    ? [
-        {
-          "@id": `${rootDomain}/${resourceType}/search`,
-          "@type": "CollectionPage",
-          name: `${resourceType} search`,
-        },
-      ]
-    : [];
+  const searchManifestLinks =
+    (config.resourceTypes[resourceType]?.searchAttributes ?? []).length > 0
+      ? [
+          {
+            "@id": `${rootDomain}/${resourceType}/search`,
+            "@type": "CollectionPage",
+            name: `${resourceType} search`,
+          },
+        ]
+      : [];
 
   return {
     outputPath: `${resourceType}/index.json`,
@@ -917,8 +905,9 @@ function collectPrimitiveIndexValues(value: JsonValue | undefined): Array<string
     if (!value.every((item) => typeof item === "string" || typeof item === "number" || typeof item === "boolean")) {
       return [];
     }
-    return value.filter((item): item is string | number | boolean =>
-      (typeof item === "string" && item.length > 0) || typeof item === "number" || typeof item === "boolean",
+    return value.filter(
+      (item): item is string | number | boolean =>
+        (typeof item === "string" && item.length > 0) || typeof item === "number" || typeof item === "boolean",
     );
   }
   return [];
@@ -929,9 +918,9 @@ function buildDocsHtml(config: ProjectConfig, instances: ResourceInstance[], roo
   const collectionLinks = grouped
     .map(([resourceType]) => `<li><code>${escapeHtml(rootDomain)}/${escapeHtml(resourceType)}</code></li>`)
     .join("");
-  const examples = grouped.map(([resourceType, resourceInstances]) =>
-    buildDocsSection(config, rootDomain, resourceType, resourceInstances)
-  ).join("");
+  const examples = grouped
+    .map(([resourceType, resourceInstances]) => buildDocsSection(config, rootDomain, resourceType, resourceInstances))
+    .join("");
 
   return `<!doctype html>
 <html lang="en">
@@ -945,7 +934,17 @@ function buildDocsHtml(config: ProjectConfig, instances: ResourceInstance[], roo
     <h2>Root Index</h2>
     <p><code>${escapeHtml(rootDomain)}/</code></p>
     <h3>Example Response</h3>
-    <pre><code>${escapeHtml(JSON.stringify(buildRootDocsExample(config, rootDomain, grouped.map(([resourceType]) => resourceType)), null, 2))}</code></pre>
+    <pre><code>${escapeHtml(
+      JSON.stringify(
+        buildRootDocsExample(
+          config,
+          rootDomain,
+          grouped.map(([resourceType]) => resourceType),
+        ),
+        null,
+        2,
+      ),
+    )}</code></pre>
     <h2>Collections</h2>
     <ul>${collectionLinks}</ul>
     ${examples}
@@ -1013,7 +1012,7 @@ function buildJsonSchemaDocument(schema: z.ZodType<JsonObject>, schemaId: string
   const jsonSchema = z.toJSONSchema(schema) as JsonSchemaDocument;
   return {
     ...jsonSchema,
-    "$id": schemaId,
+    $id: schemaId,
   };
 }
 
@@ -1029,34 +1028,36 @@ function buildDocsSection(
   const searchManifestUrl = `${rootDomain}/${resourceType}/search`;
   const searchAttributes = config.resourceTypes[resourceType]?.searchAttributes ?? [];
   const sampleSearchAttribute = searchAttributes[0];
-  const sampleSearchValue = firstInstance && sampleSearchAttribute
-    ? firstSearchValue(getPathValue(firstInstance.resource.data, sampleSearchAttribute))
-    : undefined;
-  const searchValueUrl = sampleSearchAttribute && sampleSearchValue
-    ? `${rootDomain}/${resourceType}/search/${sampleSearchAttribute}/${toSearchSlug(sampleSearchValue)}`
-    : undefined;
+  const sampleSearchValue =
+    firstInstance && sampleSearchAttribute
+      ? firstSearchValue(getPathValue(firstInstance.resource.data, sampleSearchAttribute))
+      : undefined;
+  const searchValueUrl =
+    sampleSearchAttribute && sampleSearchValue
+      ? `${rootDomain}/${resourceType}/search/${sampleSearchAttribute}/${toSearchSlug(sampleSearchValue)}`
+      : undefined;
   const versionUrl = firstInstance?.versions[0]
     ? `${rootDomain}/${resourceType}/${firstInstance.resource.resourceId}/versions/${firstInstance.versions[0].versionId}`
     : undefined;
 
   const sections = [
-    renderDocsExample("Collection Index", collectionUrl, buildCollectionDocsExample(rootDomain, resourceType, instances)),
+    renderDocsExample(
+      "Collection Index",
+      collectionUrl,
+      buildCollectionDocsExample(rootDomain, resourceType, instances),
+    ),
     renderDocsExample(
       "Resource Document",
       resourceUrl,
       firstInstance ? firstInstance.resource.data : { note: "No resource example available" },
     ),
     versionUrl
-      ? renderDocsExample(
-          "Version Document",
-          versionUrl,
-          {
-            "@context": "https://schema.org",
-            "@type": getVersionReferenceType(firstInstance),
-            "@id": versionUrl,
-            version: firstInstance?.versions[0]?.versionId ?? "",
-          },
-        )
+      ? renderDocsExample("Version Document", versionUrl, {
+          "@context": "https://schema.org",
+          "@type": getVersionReferenceType(firstInstance),
+          "@id": versionUrl,
+          version: firstInstance?.versions[0]?.versionId ?? "",
+        })
       : "",
     searchAttributes.length > 0
       ? renderDocsExample(
@@ -1069,10 +1070,18 @@ function buildDocsSection(
       ? renderDocsExample(
           "Search Value Index",
           searchValueUrl,
-          buildSearchValueDocsExample(rootDomain, resourceType, sampleSearchAttribute, sampleSearchValue, firstInstance),
+          buildSearchValueDocsExample(
+            rootDomain,
+            resourceType,
+            sampleSearchAttribute,
+            sampleSearchValue,
+            firstInstance,
+          ),
         )
       : "",
-  ].filter(Boolean).join("");
+  ]
+    .filter(Boolean)
+    .join("");
 
   return `
     <h2>${escapeHtml(resourceType)}</h2>
@@ -1103,7 +1112,11 @@ function buildRootDocsExample(config: ProjectConfig, rootDomain: string, resourc
   };
 }
 
-function buildCollectionDocsExample(rootDomain: string, resourceType: string, instances: ResourceInstance[]): JsonObject {
+function buildCollectionDocsExample(
+  rootDomain: string,
+  resourceType: string,
+  instances: ResourceInstance[],
+): JsonObject {
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -1197,18 +1210,10 @@ function resolveSearchDocumentSchema(outputPath: string): z.ZodType<JsonObject> 
 }
 
 function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
-function validateGeneratedDocument(
-  document: JsonObject,
-  source: string,
-  schema?: z.ZodType<JsonObject>,
-): void {
+function validateGeneratedDocument(document: JsonObject, source: string, schema?: z.ZodType<JsonObject>): void {
   const baseResult = IndexDocumentSchema.safeParse(document);
   if (!baseResult.success) {
     throw zodIssueToBuildError(baseResult.error.issues[0], source, {});
@@ -1259,11 +1264,83 @@ async function writeArtifacts(
   }
 }
 
+async function removeObsoleteArtifacts(cwd: string, previous: BuildResult, next: BuildResult): Promise<void> {
+  const nextPaths = new Set<string>([
+    ...next.documents.map((document) => document.outputPath),
+    ...next.assets.map((asset) => asset.outputPath),
+  ]);
+  const previousPaths = [
+    ...previous.documents.map((document) => document.outputPath),
+    ...previous.assets.map((asset) => asset.outputPath),
+  ];
+
+  for (const outputPath of previousPaths) {
+    if (nextPaths.has(outputPath)) {
+      continue;
+    }
+
+    await fs.rm(path.join(cwd, "out", outputPath), { force: true });
+  }
+}
+
+async function writeChangedArtifacts(cwd: string, previous: BuildResult, next: BuildResult): Promise<void> {
+  const previousDocuments = new Map(previous.documents.map((document) => [document.outputPath, document]));
+  const previousAssets = new Map(previous.assets.map((asset) => [asset.outputPath, asset]));
+  const outRoot = path.join(cwd, "out");
+  await fs.mkdir(outRoot, { recursive: true });
+
+  for (const document of next.documents) {
+    const prior = previousDocuments.get(document.outputPath);
+    if (prior && serializeDocument(prior, next.mode) === serializeDocument(document, next.mode)) {
+      continue;
+    }
+
+    const targetPath = path.join(outRoot, document.outputPath);
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+
+    if (document.outputPath.endsWith(".html")) {
+      const html = document.document.html;
+      if (!maybeString(html)) {
+        throw new BuildError("Documentation HTML payload is invalid", {
+          code: "INVALID_DOCS_HTML",
+          filePath: targetPath,
+        });
+      }
+      await fs.writeFile(targetPath, html, "utf8");
+      continue;
+    }
+
+    const spacing = next.mode === "production" ? undefined : 2;
+    await fs.writeFile(targetPath, JSON.stringify(document.document, null, spacing), "utf8");
+  }
+
+  for (const asset of next.assets) {
+    const prior = previousAssets.get(asset.outputPath);
+    if (prior && prior.sourcePath === asset.sourcePath) {
+      continue;
+    }
+
+    const targetPath = path.join(outRoot, asset.outputPath);
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.copyFile(asset.sourcePath, targetPath);
+  }
+}
+
+function serializeDocument(document: GeneratedDocument, mode: BuildMode): string {
+  if (document.outputPath.endsWith(".html")) {
+    return String(document.document.html ?? "");
+  }
+
+  const spacing = mode === "production" ? undefined : 2;
+  return JSON.stringify(document.document, null, spacing);
+}
+
 function structuredCloneJson<T extends JsonValue>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
 export const __test = {
+  serializeDocument,
   claimOutputPath,
   claimSearchValueNormalization,
   copyAsset,

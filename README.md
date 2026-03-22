@@ -4,20 +4,24 @@ Static API JSON Schema transforms repository-local YAML resources into schema.or
 
 ## Commands
 
-- `npm run build`
-  Builds output into `out/`.
-- `npm run build -- --mode=production`
-  Builds output into `out/` using minified JSON.
-- `npm run validate`
-  Validates sources and generated documents without writing output.
-- `npm run dev`
-  Builds in development mode, watches `resources/`, and serves `out/` locally.
-- `npm run clean`
-  Removes `out/`.
+- `npm run lint`
+  Lints the project files using ESLint.
+- `npm run format`
+  Formats the project files using Prettier.
 - `npm test`
   Runs the test suite.
 - `npm run typecheck`
   Runs TypeScript type checking without emitting JavaScript.
+- `npm run build`
+  Compiles TypeScript source files into `dist/`.
+- `npm start`
+  Generates the static API from YAML sources into `out/`. Use `npm start -- --mode=production` for minified output.
+- `npm run validate`
+  Validates sources and generated documents without writing output.
+- `npm run dev`
+  Starts a development server, watches `src/` and `resources/` for changes, and rebuilds incrementally.
+- `npm run clean`
+  Removes the `out/` and `dist/` directories.
 
 ## Project Layout
 
