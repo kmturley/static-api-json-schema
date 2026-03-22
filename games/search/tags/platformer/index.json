@@ -1,0 +1,21 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/games/search/tags/platformer",
+  "name": "games tags platformer",
+  "about": [
+    {
+      "@id": "https://example.com/games",
+      "@type": "CollectionPage",
+      "name": "games collection"
+    }
+  ],
+  "value": "platformer",
+  "hasPart": [
+    {
+      "@id": "https://example.com/games/lumen",
+      "@type": "SoftwareApplication",
+      "name": "Lumen Drift"
+    }
+  ]
+}

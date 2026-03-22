@@ -1,0 +1,25 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/games/search",
+  "name": "games search",
+  "about": [
+    {
+      "@id": "https://example.com/games",
+      "@type": "CollectionPage",
+      "name": "games collection"
+    }
+  ],
+  "hasPart": [
+    {
+      "@id": "https://example.com/games/search/genre",
+      "@type": "CollectionPage",
+      "name": "genre"
+    },
+    {
+      "@id": "https://example.com/games/search/tags",
+      "@type": "CollectionPage",
+      "name": "tags"
+    }
+  ]
+}

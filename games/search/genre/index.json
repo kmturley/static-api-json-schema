@@ -1,0 +1,25 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/games/search/genre",
+  "name": "games search by genre",
+  "about": [
+    {
+      "@id": "https://example.com/games",
+      "@type": "CollectionPage",
+      "name": "games collection"
+    }
+  ],
+  "hasPart": [
+    {
+      "@id": "https://example.com/games/search/genre/puzzle",
+      "@type": "CollectionPage",
+      "name": "Puzzle"
+    },
+    {
+      "@id": "https://example.com/games/search/genre/adventure",
+      "@type": "CollectionPage",
+      "name": "Adventure"
+    }
+  ]
+}

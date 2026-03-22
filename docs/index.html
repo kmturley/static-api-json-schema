@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Static API JSON Schema Docs</title>
+  </head>
+  <body>
+    <h1>Static API JSON Schema</h1>
+    <p>Version 0.1.0</p>
+    <h2>Root Index</h2>
+    <p><code>https://example.com/</code></p>
+    <h3>Example Response</h3>
+    <pre><code>{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;CollectionPage&quot;,
+  &quot;@id&quot;: &quot;https://example.com/&quot;,
+  &quot;name&quot;: &quot;Static API JSON Schema&quot;,
+  &quot;version&quot;: &quot;0.1.0&quot;,
+  &quot;hasPart&quot;: [
+    {
+      &quot;@id&quot;: &quot;https://example.com/games&quot;,
+      &quot;@type&quot;: &quot;CollectionPage&quot;,
+      &quot;name&quot;: &quot;games&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;https://example.com/publishers&quot;,
+      &quot;@type&quot;: &quot;CollectionPage&quot;,
+      &quot;name&quot;: &quot;publishers&quot;
+    }
+  ]
+}</code></pre>
+    <h2>Collections</h2>
+    <ul><li><code>https://example.com/games</code></li><li><code>https://example.com/publishers</code></li></ul>
+    
+    <h2>games</h2>
+    <p>This section describes collection indexes, resource documents, version documents, and search indexes for <code>games</code>.</p>
+    
+    <h3>Collection Index</h3>
+    <p>Example Request: <code>https://example.com/games</code></p>
+    <p>Example Response:</p>
+    <pre><code>{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;CollectionPage&quot;,
+  &quot;@id&quot;: &quot;https://example.com/games&quot;,
+  &quot;name&quot;: &quot;games collection&quot;,
+  &quot;hasPart&quot;: [
+    {
+      &quot;@id&quot;: &quot;https://example.com/games/lumen&quot;,
+      &quot;@type&quot;: &quot;SoftwareApplication&quot;,
+      &quot;name&quot;: &quot;Lumen Drift&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;https://example.com/games/space-quest&quot;,
+      &quot;@type&quot;: &quot;SoftwareApplication&quot;,
+      &quot;name&quot;: &quot;Space Quest Prototype&quot;
+    }
+  ]
+}</code></pre>
+    <h3>Resource Document</h3>
+    <p>Example Request: <code>https://example.com/games/lumen</code></p>
+    <p>Example Response:</p>
+    <pre><code>{
+  &quot;type&quot;: &quot;SoftwareApplication&quot;,
+  &quot;name&quot;: &quot;Lumen Drift&quot;,
+  &quot;description&quot;: &quot;Atmospheric puzzle-platform prototype included to demonstrate collection and search output.&quot;,
+  &quot;genre&quot;: &quot;Puzzle&quot;,
+  &quot;publisher&quot;: &quot;/publishers/lighthouse&quot;,
+  &quot;url&quot;: &quot;https://example.com/games/lumen&quot;,
+  &quot;image&quot;: &quot;https://example.com/images/lumen.png&quot;,
+  &quot;tags&quot;: [
+    &quot;puzzle&quot;,
+    &quot;platformer&quot;
+  ]
+}</code></pre>
+    <h3>Search Manifest</h3>
+    <p>Example Request: <code>https://example.com/games/search</code></p>
+    <p>Example Response:</p>
+    <pre><code>{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;CollectionPage&quot;,
+  &quot;@id&quot;: &quot;https://example.com/games/search&quot;,
+  &quot;name&quot;: &quot;games search&quot;,
+  &quot;about&quot;: [
+    {
+      &quot;@id&quot;: &quot;https://example.com/games&quot;,
+      &quot;@type&quot;: &quot;CollectionPage&quot;,
+      &quot;name&quot;: &quot;games collection&quot;
+    }
+  ],
+  &quot;hasPart&quot;: [
+    {
+      &quot;@id&quot;: &quot;https://example.com/games/search/genre&quot;,
+      &quot;@type&quot;: &quot;CollectionPage&quot;,
+      &quot;name&quot;: &quot;genre&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;https://example.com/games/search/tags&quot;,
+      &quot;@type&quot;: &quot;CollectionPage&quot;,
+      &quot;name&quot;: &quot;tags&quot;
+    }
+  ]
+}</code></pre>
+    <h3>Search Value Index</h3>
+    <p>Example Request: <code>https://example.com/games/search/genre/puzzle</code></p>
+    <p>Example Response:</p>
+    <pre><code>{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;CollectionPage&quot;,
+  &quot;@id&quot;: &quot;https://example.com/games/search/genre/puzzle&quot;,
+  &quot;name&quot;: &quot;games genre Puzzle&quot;,
+  &quot;about&quot;: [
+    {
+      &quot;@id&quot;: &quot;https://example.com/games&quot;,
+      &quot;@type&quot;: &quot;CollectionPage&quot;,
+      &quot;name&quot;: &quot;games collection&quot;
+    }
+  ],
+  &quot;value&quot;: &quot;Puzzle&quot;,
+  &quot;hasPart&quot;: [
+    {
+      &quot;@id&quot;: &quot;https://example.com/games/lumen&quot;,
+      &quot;@type&quot;: &quot;SoftwareApplication&quot;,
+      &quot;name&quot;: &quot;Lumen Drift&quot;
+    }
+  ]
+}</code></pre>
+    <h2>publishers</h2>
+    <p>This section describes collection indexes, resource documents, version documents, and search indexes for <code>publishers</code>.</p>
+    
+    <h3>Collection Index</h3>
+    <p>Example Request: <code>https://example.com/publishers</code></p>
+    <p>Example Response:</p>
+    <pre><code>{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;CollectionPage&quot;,
+  &quot;@id&quot;: &quot;https://example.com/publishers&quot;,
+  &quot;name&quot;: &quot;publishers collection&quot;,
+  &quot;hasPart&quot;: [
+    {
+      &quot;@id&quot;: &quot;https://example.com/publishers/acme&quot;,
+      &quot;@type&quot;: &quot;Organization&quot;,
+      &quot;name&quot;: &quot;Acme Interactive&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;https://example.com/publishers/lighthouse&quot;,
+      &quot;@type&quot;: &quot;Organization&quot;,
+      &quot;name&quot;: &quot;Lighthouse Studio&quot;
+    }
+  ]
+}</code></pre>
+    <h3>Resource Document</h3>
+    <p>Example Request: <code>https://example.com/publishers/acme</code></p>
+    <p>Example Response:</p>
+    <pre><code>{
+  &quot;type&quot;: &quot;Organization&quot;,
+  &quot;name&quot;: &quot;Acme Interactive&quot;,
+  &quot;description&quot;: &quot;Independent publisher focused on polished retro-inspired releases.&quot;,
+  &quot;url&quot;: &quot;https://example.com/publishers/acme&quot;
+}</code></pre>
+  </body>
+</html>

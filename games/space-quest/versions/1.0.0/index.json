@@ -1,0 +1,23 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "@id": "https://example.com/games/space-quest/versions/1.0.0",
+  "name": "Space Quest Prototype 1.0.0",
+  "version": "1.0.0",
+  "datePublished": "2024-11-10",
+  "releaseNotes": "First public prototype release.",
+  "isPartOf": {
+    "@id": "https://example.com/games/space-quest",
+    "@type": "SoftwareApplication"
+  },
+  "distribution": [
+    {
+      "@type": "DataDownload",
+      "name": "Space Quest 1.0.0 macOS",
+      "encodingFormat": "text/plain",
+      "license": "https://spdx.org/licenses/MIT.html",
+      "operatingSystem": "macOS",
+      "contentUrl": "https://example.com/games/space-quest/versions/1.0.0/assets/space-quest-1.0.0-macos.txt"
+    }
+  ]
+}

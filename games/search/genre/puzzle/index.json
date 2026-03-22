@@ -1,0 +1,21 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/games/search/genre/puzzle",
+  "name": "games genre Puzzle",
+  "about": [
+    {
+      "@id": "https://example.com/games",
+      "@type": "CollectionPage",
+      "name": "games collection"
+    }
+  ],
+  "value": "Puzzle",
+  "hasPart": [
+    {
+      "@id": "https://example.com/games/lumen",
+      "@type": "SoftwareApplication",
+      "name": "Lumen Drift"
+    }
+  ]
+}

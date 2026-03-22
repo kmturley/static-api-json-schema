@@ -1,0 +1,20 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": "https://example.com/games/lumen",
+  "name": "Lumen Drift",
+  "description": "Atmospheric puzzle-platform prototype included to demonstrate collection and search output.",
+  "applicationCategory": "Puzzle",
+  "keywords": [
+    "puzzle",
+    "platformer"
+  ],
+  "publisher": {
+    "@id": "https://example.com/publishers/lighthouse",
+    "@type": "Organization"
+  },
+  "url": "https://example.com/games/lumen",
+  "image": "https://example.com/images/lumen.png",
+  "versions": [],
+  "latestVersion": null
+}

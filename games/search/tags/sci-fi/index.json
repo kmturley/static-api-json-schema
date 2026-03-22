@@ -1,0 +1,21 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/games/search/tags/sci-fi",
+  "name": "games tags sci-fi",
+  "about": [
+    {
+      "@id": "https://example.com/games",
+      "@type": "CollectionPage",
+      "name": "games collection"
+    }
+  ],
+  "value": "sci-fi",
+  "hasPart": [
+    {
+      "@id": "https://example.com/games/space-quest",
+      "@type": "SoftwareApplication",
+      "name": "Space Quest Prototype"
+    }
+  ]
+}

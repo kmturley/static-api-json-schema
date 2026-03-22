@@ -1,0 +1,25 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/games",
+  "name": "games collection",
+  "hasPart": [
+    {
+      "@id": "https://example.com/games/lumen",
+      "@type": "SoftwareApplication",
+      "name": "Lumen Drift"
+    },
+    {
+      "@id": "https://example.com/games/space-quest",
+      "@type": "SoftwareApplication",
+      "name": "Space Quest Prototype"
+    }
+  ],
+  "about": [
+    {
+      "@id": "https://example.com/games/search",
+      "@type": "CollectionPage",
+      "name": "games search"
+    }
+  ]
+}

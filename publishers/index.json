@@ -1,0 +1,19 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/publishers",
+  "name": "publishers collection",
+  "hasPart": [
+    {
+      "@id": "https://example.com/publishers/acme",
+      "@type": "Organization",
+      "name": "Acme Interactive"
+    },
+    {
+      "@id": "https://example.com/publishers/lighthouse",
+      "@type": "Organization",
+      "name": "Lighthouse Studio"
+    }
+  ],
+  "about": []
+}

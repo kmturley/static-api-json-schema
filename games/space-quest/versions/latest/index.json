@@ -1,0 +1,23 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "@id": "https://example.com/games/space-quest/versions/latest",
+  "name": "Space Quest Prototype 1.1.0",
+  "version": "1.1.0",
+  "datePublished": "2025-02-20",
+  "releaseNotes": "Improves performance and adds a new mission briefing.",
+  "isPartOf": {
+    "@id": "https://example.com/games/space-quest",
+    "@type": "SoftwareApplication"
+  },
+  "distribution": [
+    {
+      "@type": "DataDownload",
+      "name": "Space Quest 1.1.0 macOS",
+      "encodingFormat": "text/plain",
+      "license": "https://spdx.org/licenses/MIT.html",
+      "operatingSystem": "macOS",
+      "contentUrl": "https://example.com/games/space-quest/versions/1.1.0/assets/space-quest-1.1.0-macos.txt"
+    }
+  ]
+}

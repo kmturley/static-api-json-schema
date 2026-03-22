@@ -1,0 +1,8 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": "https://example.com/publishers/acme",
+  "name": "Acme Interactive",
+  "description": "Independent publisher focused on polished retro-inspired releases.",
+  "url": "https://example.com/publishers/acme"
+}

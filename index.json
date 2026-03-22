@@ -1,0 +1,26 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/",
+  "name": "Static API JSON Schema",
+  "version": "0.1.0",
+  "hasPart": [
+    {
+      "@id": "https://example.com/games",
+      "@type": "CollectionPage",
+      "name": "games"
+    },
+    {
+      "@id": "https://example.com/publishers",
+      "@type": "CollectionPage",
+      "name": "publishers"
+    }
+  ],
+  "about": [
+    {
+      "@id": "https://example.com/games/search",
+      "@type": "CollectionPage",
+      "name": "games search"
+    }
+  ]
+}

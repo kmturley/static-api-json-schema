@@ -1,0 +1,35 @@
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://example.com/games/search/tags",
+  "name": "games search by tags",
+  "about": [
+    {
+      "@id": "https://example.com/games",
+      "@type": "CollectionPage",
+      "name": "games collection"
+    }
+  ],
+  "hasPart": [
+    {
+      "@id": "https://example.com/games/search/tags/puzzle",
+      "@type": "CollectionPage",
+      "name": "puzzle"
+    },
+    {
+      "@id": "https://example.com/games/search/tags/platformer",
+      "@type": "CollectionPage",
+      "name": "platformer"
+    },
+    {
+      "@id": "https://example.com/games/search/tags/sci-fi",
+      "@type": "CollectionPage",
+      "name": "sci-fi"
+    },
+    {
+      "@id": "https://example.com/games/search/tags/single-player",
+      "@type": "CollectionPage",
+      "name": "single-player"
+    }
+  ]
+}
