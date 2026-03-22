@@ -558,3 +558,32 @@ test("generates documentation with example requests and example responses", asyn
   assert.match(docsHtml, /https:\/\/example\.com\/games\/test\/versions\/1\.0\.0/);
   assert.match(docsHtml, /https:\/\/example\.com\/games\/search/);
 });
+
+test("publishes machine-readable type definitions for generated document shapes", async () => {
+  const cwd = await makeFixture({
+    "resources/publishers/acme/index.yaml": "type: Organization\nname: Acme Games\n",
+    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\ngenre: Action\npublisher: /publishers/acme\n",
+    "resources/games/test/versions/1.0.0.yaml": "type: SoftwareSourceCode\nversion: 1.0.0\ndatePublished: 2024-01-01\n",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig(), mode: "development" }, registry);
+
+  const manifest = JSON.parse(await fs.readFile(path.join(cwd, "out/types/index.json"), "utf8"));
+  assert.equal(manifest.apiName, "Example API");
+  assert.ok(manifest.definitions.some((entry: { name: string }) => entry.name === "root-index"));
+  assert.ok(manifest.definitions.some((entry: { name: string }) => entry.name === "games-resource"));
+  assert.ok(manifest.definitions.some((entry: { name: string }) => entry.name === "games-version"));
+
+  const rootIndexSchema = JSON.parse(await fs.readFile(path.join(cwd, "out/types/root-index.schema.json"), "utf8"));
+  assert.equal(rootIndexSchema["$id"], "https://example.com/types/root-index.schema.json");
+  assert.equal(rootIndexSchema.type, "object");
+  assert.ok(rootIndexSchema.required.includes("@context"));
+  assert.ok(rootIndexSchema.required.includes("hasPart"));
+
+  const resourceSchema = JSON.parse(
+    await fs.readFile(path.join(cwd, "out/types/resources/games.resource.schema.json"), "utf8"),
+  );
+  assert.equal(resourceSchema["$id"], "https://example.com/types/resources/games.resource.schema.json");
+  assert.equal(resourceSchema.type, "object");
+  assert.ok(resourceSchema.required.includes("@context"));
+});

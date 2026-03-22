@@ -100,6 +100,8 @@ export interface BuildResult {
   assets: GeneratedAsset[];
 }
 
+type JsonSchemaDocument = JsonObject;
+
 export async function runBuild(options: BuildOptions, registry: SchemaRegistry): Promise<BuildResult> {
   const config = options.config ?? await loadProjectConfig();
   const mode = options.mode ?? "development";
@@ -344,6 +346,8 @@ async function generateArtifacts(
       html: docsHtml,
     },
   });
+
+  documents.push(...buildTypeDefinitionDocuments(config, registry, normalizedDomain));
 
   return { config, mode: "development", documents, assets };
 }
@@ -949,6 +953,70 @@ function buildDocsHtml(config: ProjectConfig, instances: ResourceInstance[], roo
 </html>`;
 }
 
+function buildTypeDefinitionDocuments(
+  config: ProjectConfig,
+  registry: SchemaRegistry,
+  rootDomain: string,
+): GeneratedDocument[] {
+  const documents: GeneratedDocument[] = [];
+  const definitions: Array<{ name: string; path: string; schema: z.ZodType<JsonObject> }> = [
+    { name: "root-index", path: "types/root-index.schema.json", schema: RootIndexSchema },
+    { name: "collection-index", path: "types/collection-index.schema.json", schema: ResourceCollectionSchema },
+    { name: "search-manifest", path: "types/search-manifest.schema.json", schema: SearchManifestSchema },
+    { name: "search-value-index", path: "types/search-value-index.schema.json", schema: SearchValueIndexSchema },
+    { name: "version-index", path: "types/version-index.schema.json", schema: VersionIndexSchema },
+  ];
+
+  for (const [resourceType, definition] of Object.entries(registry)) {
+    definitions.push({
+      name: `${resourceType}-resource`,
+      path: `types/resources/${resourceType}.resource.schema.json`,
+      schema: definition.resourceOutputSchema ?? IndexDocumentSchema,
+    });
+    if (definition.versionSchema) {
+      definitions.push({
+        name: `${resourceType}-version`,
+        path: `types/resources/${resourceType}.version.schema.json`,
+        schema: definition.versionOutputSchema ?? IndexDocumentSchema,
+      });
+    }
+  }
+
+  const manifestEntries = definitions.map((definition) => ({
+    name: definition.name,
+    path: `/${definition.path}`,
+    url: `${rootDomain}/${definition.path}`,
+  }));
+
+  documents.push({
+    outputPath: "types/index.json",
+    urlPath: "/types",
+    document: {
+      apiName: config.apiName,
+      apiVersion: config.apiVersion,
+      definitions: manifestEntries,
+    },
+  });
+
+  for (const definition of definitions) {
+    documents.push({
+      outputPath: definition.path,
+      urlPath: `/${definition.path}`,
+      document: buildJsonSchemaDocument(definition.schema, `${rootDomain}/${definition.path}`),
+    });
+  }
+
+  return documents;
+}
+
+function buildJsonSchemaDocument(schema: z.ZodType<JsonObject>, schemaId: string): JsonSchemaDocument {
+  const jsonSchema = z.toJSONSchema(schema) as JsonSchemaDocument;
+  return {
+    ...jsonSchema,
+    "$id": schemaId,
+  };
+}
+
 function buildDocsSection(
   config: ProjectConfig,
   rootDomain: string,
@@ -1200,4 +1268,5 @@ export const __test = {
   claimSearchValueNormalization,
   copyAsset,
   resolveReference,
+  buildJsonSchemaDocument,
 };
