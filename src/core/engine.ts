@@ -629,6 +629,32 @@ function claimOutputPath(claims: Map<string, string>, outputPath: string, source
   claims.set(outputPath, source);
 }
 
+function claimSearchValueNormalization<T>(
+  claims: Map<string, { originalValue: string; resources: T[] }>,
+  options: {
+    attribute: string;
+    resourceType: string;
+    originalValue: string;
+    normalizedValue: string;
+  },
+): { originalValue: string; resources: T[] } {
+  const existing = claims.get(options.normalizedValue);
+  if (existing && existing.originalValue !== options.originalValue) {
+    throw new BuildError("Search value normalization collision detected", {
+      code: "SEARCH_COLLISION",
+      fieldPath: options.attribute,
+      resourceType: options.resourceType,
+      originalValue: options.originalValue,
+      normalizedValue: options.normalizedValue,
+      conflictingSource: existing.originalValue,
+    });
+  }
+
+  const entry = existing ?? { originalValue: options.originalValue, resources: [] };
+  claims.set(options.normalizedValue, entry);
+  return entry;
+}
+
 function buildRootIndex(
   config: ProjectConfig,
   instances: ResourceInstance[],
@@ -752,24 +778,17 @@ function buildSearchIndexes(
       for (const primitive of primitives) {
         const originalValue = String(primitive);
         const slug = toSearchSlug(originalValue);
-        const existing = valuesToResources.get(slug);
-        if (existing && existing.originalValue !== originalValue) {
-          throw new BuildError("Search value normalization collision detected", {
-            code: "SEARCH_COLLISION",
-            fieldPath: attribute,
-            resourceType,
-            originalValue,
-            normalizedValue: slug,
-            conflictingSource: existing.originalValue,
-          });
-        }
-        const entry = existing ?? { originalValue, resources: [] };
+        const entry = claimSearchValueNormalization(valuesToResources, {
+          attribute,
+          resourceType,
+          originalValue,
+          normalizedValue: slug,
+        });
         entry.resources.push({
           resourceId: instance.resource.resourceId,
           jsonLdType: getResourceReferenceType(instance),
           name: getResourceReferenceName(instance),
         });
-        valuesToResources.set(slug, entry);
       }
     }
 
@@ -1175,3 +1194,10 @@ async function writeArtifacts(
 function structuredCloneJson<T extends JsonValue>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
+
+export const __test = {
+  claimOutputPath,
+  claimSearchValueNormalization,
+  copyAsset,
+  resolveReference,
+};

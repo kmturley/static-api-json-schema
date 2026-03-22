@@ -3,13 +3,17 @@ import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { z } from "zod";
+
 import { discoverSources } from "../src/core/discovery.js";
+import { __test as engineTestHelpers, runBuild } from "../src/core/engine.js";
 import {
   assertSafeResourceSegment,
   compareSemverDesc,
   ensureInsideRoot,
   toSearchSlug,
 } from "../src/core/utils.js";
+import type { GeneratedAsset, ProjectConfig, SchemaRegistry } from "../src/core/types.js";
 import { loadYamlFile } from "../src/core/yaml.js";
 import { makeFixture, makeTestConfig } from "./helpers.js";
 
@@ -95,6 +99,108 @@ test("normalizes search values consistently", () => {
   assert.equal(toSearchSlug("C++"), "c");
 });
 
+test("detects output path collisions with detailed metadata", () => {
+  const claims = new Map<string, string>();
+  engineTestHelpers.claimOutputPath(claims, "games/test/index.json", "resources/games/test/index.yaml");
+
+  assert.throws(
+    () => engineTestHelpers.claimOutputPath(claims, "games/test/index.json", "resources/games/other/index.yaml"),
+    (error: unknown) =>
+      error instanceof Error &&
+      "generatedPath" in error &&
+      "conflictingSource" in error &&
+      "originalValue" in error,
+  );
+});
+
+test("detects search normalization collisions with detailed metadata", () => {
+  const claims = new Map<string, { originalValue: string; resources: string[] }>();
+  const first = engineTestHelpers.claimSearchValueNormalization(claims, {
+    attribute: "genre",
+    resourceType: "games",
+    originalValue: "C",
+    normalizedValue: "c",
+  });
+  assert.equal(first.originalValue, "C");
+
+  assert.throws(
+    () =>
+      engineTestHelpers.claimSearchValueNormalization(claims, {
+        attribute: "genre",
+        resourceType: "games",
+        originalValue: "C++",
+        normalizedValue: "c",
+      }),
+    (error: unknown) =>
+      error instanceof Error &&
+      "normalizedValue" in error &&
+      "conflictingSource" in error,
+  );
+});
+
+test("resolves internal references to JSON-LD reference objects", () => {
+  const target = engineTestHelpers.resolveReference(
+    "/publishers/acme",
+    new Map([
+      [
+        "/publishers/acme",
+        {
+          canonicalUrl: "https://example.com/publishers/acme",
+          jsonLdType: "Organization",
+          kind: "resource",
+        },
+      ],
+    ]),
+    "resources/games/test/index.yaml",
+  );
+
+  assert.deepEqual(target, {
+    "@id": "https://example.com/publishers/acme",
+    "@type": "Organization",
+  });
+});
+
+test("builds asset output paths and metadata for version-owned assets", async () => {
+  const cwd = await makeFixture({
+    "resources/games/test/assets/test.zip": "zip payload",
+  });
+
+  const claims = new Map<string, string>();
+  const assets: GeneratedAsset[] = [];
+  const config: ProjectConfig = makeTestConfig({ games: {} });
+  const resourcesRoot = path.join(cwd, "resources");
+
+  const result = engineTestHelpers.copyAsset(
+    cwd,
+    resourcesRoot,
+    config,
+    claims,
+    assets,
+    {
+      path: "/games/test/assets/test.zip",
+      encodingFormat: "application/zip",
+    },
+    {
+      resourceType: "games",
+      resourceId: "test",
+      versionId: "1.0.0",
+    },
+    "resources/games/test/versions/1.0.0.yaml",
+  );
+
+  assert.deepEqual(result, {
+    encodingFormat: "application/zip",
+    contentUrl: "https://example.com/games/test/versions/1.0.0/assets/test.zip",
+  });
+  assert.deepEqual(assets, [
+    {
+      sourcePath: path.join(cwd, "resources/games/test/assets/test.zip"),
+      outputPath: "games/test/versions/1.0.0/assets/test.zip",
+      urlPath: "/games/test/versions/1.0.0/assets/test.zip",
+    },
+  ]);
+});
+
 test("collects recognized YAML files and versions from the canonical layout", async () => {
   const cwd = await makeFixture({
     "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\n",
@@ -105,4 +211,44 @@ test("collects recognized YAML files and versions from the canonical layout", as
   assert.equal(instances.length, 1);
   assert.equal(instances[0]?.resource.resourceType, "games");
   assert.equal(instances[0]?.versions[0]?.versionId, "1.0.0");
+});
+
+test("delete and modify rebuild flows update generated output", async () => {
+  const registry: SchemaRegistry = {
+    games: {
+      resourceSchema: z.object({
+        type: z.literal("SoftwareApplication"),
+        name: z.string(),
+      }),
+      resourceJsonLdType: "SoftwareApplication",
+      allowedResourceTypes: ["SoftwareApplication"],
+      compileResource({ resource, helper }) {
+        return helper.makeJsonLdDocument("SoftwareApplication", {
+          name: resource.data.name as string,
+        });
+      },
+    },
+  };
+
+  const cwd = await makeFixture({
+    "resources/games/alpha/index.yaml": "type: SoftwareApplication\nname: Alpha\n",
+    "resources/games/beta/index.yaml": "type: SoftwareApplication\nname: Beta\n",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" }, registry);
+  let collection = JSON.parse(await fs.readFile(path.join(cwd, "out/games/index.json"), "utf8"));
+  assert.equal(collection.hasPart.length, 2);
+
+  await fs.writeFile(path.join(cwd, "resources/games/alpha/index.yaml"), "type: SoftwareApplication\nname: Alpha Prime\n", "utf8");
+  await runBuild({ cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" }, registry);
+
+  let alpha = JSON.parse(await fs.readFile(path.join(cwd, "out/games/alpha/index.json"), "utf8"));
+  assert.equal(alpha.name, "Alpha Prime");
+
+  await fs.rm(path.join(cwd, "resources/games/beta"), { recursive: true, force: true });
+  await runBuild({ cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" }, registry);
+
+  collection = JSON.parse(await fs.readFile(path.join(cwd, "out/games/index.json"), "utf8"));
+  assert.equal(collection.hasPart.length, 1);
+  await assert.rejects(() => fs.readFile(path.join(cwd, "out/games/beta/index.json"), "utf8"));
 });
