@@ -13,7 +13,7 @@
   "value": "platformer",
   "hasPart": [
     {
-      "@id": "https://kmturley.github.io/static-api-json-schema/games/lumen",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games/lumen-drift",
       "@type": "SoftwareApplication",
       "name": "Lumen Drift"
     }

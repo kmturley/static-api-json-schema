@@ -2,7 +2,7 @@
   "@context": "https://schema.org",
   "@type": "SoftwareSourceCode",
   "@id": "https://kmturley.github.io/static-api-json-schema/games/space-quest/versions/1.0.0",
-  "name": "Space Quest Prototype 1.0.0",
+  "name": "Space Quest 1.0.0",
   "version": "1.0.0",
   "datePublished": "2024-11-10",
   "releaseNotes": "First public prototype release.",

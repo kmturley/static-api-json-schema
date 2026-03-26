@@ -15,7 +15,7 @@
     {
       "@id": "https://kmturley.github.io/static-api-json-schema/games/space-quest",
       "@type": "SoftwareApplication",
-      "name": "Space Quest Prototype"
+      "name": "Space Quest"
     }
   ]
 }

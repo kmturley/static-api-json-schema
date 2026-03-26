@@ -5,14 +5,14 @@
   "name": "games collection",
   "hasPart": [
     {
-      "@id": "https://kmturley.github.io/static-api-json-schema/games/lumen",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games/lumen-drift",
       "@type": "SoftwareApplication",
       "name": "Lumen Drift"
     },
     {
       "@id": "https://kmturley.github.io/static-api-json-schema/games/space-quest",
       "@type": "SoftwareApplication",
-      "name": "Space Quest Prototype"
+      "name": "Space Quest"
     }
   ],
   "about": [
