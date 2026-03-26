@@ -1,10 +1,10 @@
 type: SoftwareApplication
-name: Space Quest Prototype
+name: Space Quest
 description: Narrative exploration game used as the sample static API resource.
 genre: Adventure
 publisher: /publishers/acme
-url: https://kmturley.github.io/static-api-json-schema/games/space-quest
-image: https://kmturley.github.io/static-api-json-schema/images/space-quest.png
+url: /games/space-quest
+image: /games/space-quest/index.jpg
 tags:
   - sci-fi
   - single-player

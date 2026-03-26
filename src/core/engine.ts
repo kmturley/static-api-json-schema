@@ -25,7 +25,14 @@ import type {
   SchemaRegistry,
 } from "./types.js";
 import { loadYamlFile } from "./yaml.js";
-import { compareSemverDesc, ensureInsideRoot, maybeString, normalizeRootDomain, toSearchSlug } from "./utils.js";
+import {
+  compareSemverDesc,
+  ensureInsideRoot,
+  maybeString,
+  normalizeRootDomain,
+  resolvePublicUrl,
+  toSearchSlug,
+} from "./utils.js";
 
 const ReferenceObjectSchema = z.object({
   "@id": z.url(),
@@ -391,6 +398,9 @@ function compileResourceArtifacts(
       return copyAsset(cwd, resourcesRoot, config, claims, assets, asset, owner, instance.resource.filePath);
     },
     toReferenceObject: makeReferenceObject,
+    rootDomain() {
+      return normalizedDomain;
+    },
     resourceUrl() {
       return `${normalizedDomain}${resourceUrlPath}`;
     },
@@ -420,6 +430,15 @@ function compileResourceArtifacts(
     versions: instance.versions as LoadedVersionSource[],
     helper,
   });
+
+  copyManagedImageAsset(
+    resourcesRoot,
+    config,
+    claims,
+    assets,
+    instance.resource.data.image,
+    instance.resource.filePath,
+  );
 
   validateGeneratedDocument(resourceDocument, instance.resource.filePath, definition.resourceOutputSchema);
 
@@ -608,6 +627,61 @@ function copyAsset(
     ...metadata,
     contentUrl,
   };
+}
+
+function copyManagedImageAsset(
+  resourcesRoot: string,
+  config: ProjectConfig,
+  claims: Map<string, string>,
+  assets: GeneratedAsset[],
+  image: JsonValue | undefined,
+  filePath: string,
+): void {
+  if (typeof image !== "string") {
+    return;
+  }
+
+  const publicUrl = resolvePublicUrl(config.rootDomain, image);
+  const rootDomain = normalizeRootDomain(config.rootDomain);
+  const managedPrefix = `${rootDomain}/`;
+  if (!publicUrl.startsWith(managedPrefix)) {
+    return;
+  }
+
+  const outputPath = publicUrl.slice(managedPrefix.length);
+  if (outputPath.length === 0) {
+    throw new BuildError("Managed image URL must include a file path", {
+      code: "INVALID_LOCAL_ASSET",
+      filePath,
+      fieldPath: "image",
+    });
+  }
+
+  const sourcePath = ensureInsideRoot(resourcesRoot, path.join(resourcesRoot, outputPath), filePath, "image");
+
+  if (!existsSync(sourcePath)) {
+    throw new BuildError("Referenced local asset does not exist", {
+      code: "MISSING_LOCAL_ASSET",
+      filePath,
+      fieldPath: "image",
+    });
+  }
+
+  if (!statSync(sourcePath).isFile()) {
+    throw new BuildError("Referenced local asset must be a file", {
+      code: "INVALID_LOCAL_ASSET",
+      filePath,
+      fieldPath: "image",
+    });
+  }
+
+  claimOutputPath(claims, outputPath, sourcePath);
+
+  assets.push({
+    sourcePath,
+    outputPath,
+    urlPath: `/${outputPath}`,
+  });
 }
 
 function claimOutputPath(claims: Map<string, string>, outputPath: string, source: string): void {

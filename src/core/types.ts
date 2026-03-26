@@ -94,6 +94,7 @@ export interface CompileHelpers {
       | { resourceType: string; resourceId: string; versionId: string },
   ): string | JsonObject;
   toReferenceObject(url: string, jsonLdType: string): ReferenceObject;
+  rootDomain(): string;
   resourceUrl(): string;
   versionUrl(versionId: string): string;
   latestVersionReference(): ReferenceObject | undefined;

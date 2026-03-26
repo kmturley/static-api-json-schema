@@ -14,6 +14,20 @@ export function normalizeRootDomain(value: string): string {
   return stripTrailingSlash(value);
 }
 
+export function resolvePublicUrl(rootDomain: string, value: string): string {
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  if (!value.startsWith("/")) {
+    throw new BuildError("Public URL paths must start with /", {
+      code: "INVALID_PUBLIC_URL",
+    });
+  }
+
+  return `${normalizeRootDomain(rootDomain)}${value}`;
+}
+
 export function toSearchSlug(input: string): string {
   const normalized = input
     .trim()

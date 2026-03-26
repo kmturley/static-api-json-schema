@@ -67,7 +67,7 @@ All folder and file path segments that participate in generated URLs should be l
 Recommended implementation:
 
 ```ts
-import slugify from 'slugify';
+import slugify from "slugify";
 
 const URLSAFE_REGEX: RegExp = /[^a-z0-9-]+/g;
 

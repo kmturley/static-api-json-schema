@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { runBuild } from "../src/core/engine.js";
 import type { JsonObject, SchemaRegistry } from "../src/core/types.js";
+import { resolvePublicUrl } from "../src/core/utils.js";
 import { makeFixture, makeTestConfig } from "./helpers.js";
 
 const registry: SchemaRegistry = {
@@ -16,6 +17,7 @@ const registry: SchemaRegistry = {
       name: z.string(),
       genre: z.string().optional(),
       publisher: z.string().optional(),
+      image: z.string().optional(),
     }),
     versionSchema: z.object({
       type: z.literal("SoftwareSourceCode"),
@@ -36,6 +38,9 @@ const registry: SchemaRegistry = {
       }
       if (resource.data.publisher) {
         fields.publisher = helper.resolveInternalReference(resource.data.publisher as string);
+      }
+      if (resource.data.image) {
+        fields.image = resolvePublicUrl("https://example.com", resource.data.image as string);
       }
       const latest = helper.latestVersionReference();
       if (latest) {
@@ -175,6 +180,68 @@ test("fails with context when a referenced local asset does not exist", async ()
     () => runBuild({ cwd, write: false, config: makeTestConfig({ games: {} }), mode: "development" }, assetRegistry),
     (error: unknown) =>
       error instanceof Error && error.message.includes("Referenced local asset does not exist") && "fieldPath" in error,
+  );
+});
+
+test("copies same-origin resource images into the published output path", async () => {
+  const cwd = await makeFixture({
+    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\nimage: /games/test/index.jpg\n",
+    "resources/games/test/index.jpg": "jpg payload",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" }, registry);
+
+  const resource = JSON.parse(await fs.readFile(path.join(cwd, "out/games/test/index.json"), "utf8"));
+  assert.equal(resource.image, "https://example.com/games/test/index.jpg");
+  assert.equal(await fs.readFile(path.join(cwd, "out/games/test/index.jpg"), "utf8"), "jpg payload");
+});
+
+test("resolves root-relative resource URLs against the configured root domain", async () => {
+  const urlRegistry: SchemaRegistry = {
+    games: {
+      resourceSchema: z.object({
+        type: z.literal("SoftwareApplication"),
+        name: z.string(),
+        url: z.string(),
+        image: z.string().optional(),
+      }),
+      resourceJsonLdType: "SoftwareApplication",
+      allowedResourceTypes: ["SoftwareApplication"],
+      compileResource({ resource, helper }) {
+        return helper.makeJsonLdDocument("SoftwareApplication", {
+          name: resource.data.name as string,
+          url: resolvePublicUrl(helper.rootDomain(), resource.data.url as string),
+          image: resource.data.image ? resolvePublicUrl(helper.rootDomain(), resource.data.image as string) : null,
+        });
+      },
+    },
+  };
+
+  const cwd = await makeFixture({
+    "resources/games/test/index.yaml":
+      "type: SoftwareApplication\nname: Test Game\nurl: /games/test\nimage: /games/test/index.jpg\n",
+    "resources/games/test/index.jpg": "jpg payload",
+  });
+
+  await runBuild({ cwd, write: true, config: makeTestConfig({ games: {} }), mode: "development" }, urlRegistry);
+
+  const resource = JSON.parse(await fs.readFile(path.join(cwd, "out/games/test/index.json"), "utf8"));
+  assert.equal(resource.url, "https://example.com/games/test");
+  assert.equal(resource.image, "https://example.com/games/test/index.jpg");
+});
+
+test("fails when a same-origin resource image is missing", async () => {
+  const cwd = await makeFixture({
+    "resources/games/test/index.yaml": "type: SoftwareApplication\nname: Test Game\nimage: /games/test/index.jpg\n",
+  });
+
+  await assert.rejects(
+    () => runBuild({ cwd, write: false, config: makeTestConfig({ games: {} }), mode: "development" }, registry),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("Referenced local asset does not exist") &&
+      "fieldPath" in error &&
+      error.fieldPath === "image",
   );
 });
 

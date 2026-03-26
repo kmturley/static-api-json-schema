@@ -3,20 +3,24 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { projectDefinition } from "../project.js";
-import { DEV_SERVER_ORIGIN, getDevServerPathCandidates, withDevServerConfig } from "./dev-server.js";
+import {
+  DEV_SERVER_ORIGIN,
+  getDevServerContentType,
+  getDevServerPathCandidates,
+  withDevServerConfig,
+} from "./dev-server.js";
 import { runBuild } from "./engine.js";
 
 async function main(): Promise<void> {
   const cwd = process.cwd();
 
   try {
-    // Run an initial build, but skip cleaning to avoid 404s/flashing during restarts
+    // Run a clean initial build so removed or renamed resources do not leave stale output behind.
     await runBuild(
       {
         cwd,
         write: true,
         mode: "development",
-        clean: false,
         config: withDevServerConfig(projectDefinition.config),
       },
       projectDefinition.schemaRegistry,
@@ -29,9 +33,7 @@ async function main(): Promise<void> {
 
         try {
           const content = await fs.readFile(targetPath);
-          const contentType = targetPath.endsWith(".html")
-            ? "text/html; charset=utf-8"
-            : "application/json; charset=utf-8";
+          const contentType = getDevServerContentType(targetPath);
           response.writeHead(200, { "content-type": contentType });
           response.end(content);
           return;

@@ -1,8 +1,10 @@
 import { z } from "zod";
 
 import type { JsonObject, ResourceTypeDefinition } from "../core/types.js";
+import { resolvePublicUrl } from "../core/utils.js";
 
 const HttpsUrl = z.string().min(8).max(256).startsWith("https://");
+const PublicUrl = z.union([HttpsUrl, z.string().min(1).max(256).startsWith("/")]);
 
 const GameSchema = z.object({
   type: z.literal("SoftwareApplication"),
@@ -10,8 +12,8 @@ const GameSchema = z.object({
   description: z.string().min(1).max(256),
   genre: z.string().min(1).max(64),
   publisher: z.string().min(3).max(256),
-  url: HttpsUrl,
-  image: HttpsUrl.optional(),
+  url: PublicUrl,
+  image: PublicUrl.optional(),
   tags: z.array(z.string().min(1).max(64)).min(1).max(8).optional(),
 });
 
@@ -47,8 +49,8 @@ export const gamesResourceType: ResourceTypeDefinition = {
       applicationCategory: resource.data.genre as string,
       keywords: (resource.data.tags as string[] | undefined) ?? [],
       publisher: helper.resolveInternalReference(resource.data.publisher as string),
-      url: resource.data.url as string,
-      image: (resource.data.image as string | undefined) ?? null,
+      url: resolvePublicUrl(helper.rootDomain(), resource.data.url as string),
+      image: resource.data.image ? resolvePublicUrl(helper.rootDomain(), resource.data.image as string) : null,
       versions: helper.versionReferences(),
       latestVersion: latestVersion ?? null,
     });

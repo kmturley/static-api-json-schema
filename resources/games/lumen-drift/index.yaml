@@ -3,8 +3,8 @@ name: Lumen Drift
 description: Atmospheric puzzle-platform prototype included to demonstrate collection and search output.
 genre: Puzzle
 publisher: /publishers/lighthouse
-url: https://kmturley.github.io/static-api-json-schema/games/lumen
-image: https://kmturley.github.io/static-api-json-schema/images/lumen.png
+url: /games/lumen-drift
+image: /games/lumen-drift/index.jpg
 tags:
   - puzzle
   - platformer
