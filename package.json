@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "check": "npm run format && npm run lint && npm run build && npm test",
     "clean": "rimraf dist out",
     "dev": "tsx --watch --watch-path ./src --watch-path ./resources ./src/core/dev.ts",
     "format": "prettier --write .",
