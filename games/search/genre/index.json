@@ -1,23 +1,23 @@
 {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
-  "@id": "https://example.com/games/search/genre",
+  "@id": "https://kmturley.github.io/static-api-json-schema/games/search/genre",
   "name": "games search by genre",
   "about": [
     {
-      "@id": "https://example.com/games",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games",
       "@type": "CollectionPage",
       "name": "games collection"
     }
   ],
   "hasPart": [
     {
-      "@id": "https://example.com/games/search/genre/puzzle",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games/search/genre/puzzle",
       "@type": "CollectionPage",
       "name": "Puzzle"
     },
     {
-      "@id": "https://example.com/games/search/genre/adventure",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games/search/genre/adventure",
       "@type": "CollectionPage",
       "name": "Adventure"
     }

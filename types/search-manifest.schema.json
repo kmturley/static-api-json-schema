@@ -97,5 +97,5 @@
     "about"
   ],
   "additionalProperties": false,
-  "$id": "https://example.com/types/search-manifest.schema.json"
+  "$id": "https://kmturley.github.io/static-api-json-schema/types/search-manifest.schema.json"
 }

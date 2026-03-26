@@ -1,23 +1,23 @@
 {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
-  "@id": "https://example.com/games/search",
+  "@id": "https://kmturley.github.io/static-api-json-schema/games/search",
   "name": "games search",
   "about": [
     {
-      "@id": "https://example.com/games",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games",
       "@type": "CollectionPage",
       "name": "games collection"
     }
   ],
   "hasPart": [
     {
-      "@id": "https://example.com/games/search/genre",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games/search/genre",
       "@type": "CollectionPage",
       "name": "genre"
     },
     {
-      "@id": "https://example.com/games/search/tags",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games/search/tags",
       "@type": "CollectionPage",
       "name": "tags"
     }

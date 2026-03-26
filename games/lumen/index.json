@@ -1,7 +1,7 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "@id": "https://example.com/games/lumen",
+  "@id": "https://kmturley.github.io/static-api-json-schema/games/lumen",
   "name": "Lumen Drift",
   "description": "Atmospheric puzzle-platform prototype included to demonstrate collection and search output.",
   "applicationCategory": "Puzzle",
@@ -10,11 +10,11 @@
     "platformer"
   ],
   "publisher": {
-    "@id": "https://example.com/publishers/lighthouse",
+    "@id": "https://kmturley.github.io/static-api-json-schema/publishers/lighthouse",
     "@type": "Organization"
   },
-  "url": "https://example.com/games/lumen",
-  "image": "https://example.com/images/lumen.png",
+  "url": "https://kmturley.github.io/static-api-json-schema/games/lumen",
+  "image": "https://kmturley.github.io/static-api-json-schema/images/lumen.png",
   "versions": [],
   "latestVersion": null
 }

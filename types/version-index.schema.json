@@ -97,5 +97,5 @@
     "about"
   ],
   "additionalProperties": false,
-  "$id": "https://example.com/types/version-index.schema.json"
+  "$id": "https://kmturley.github.io/static-api-json-schema/types/version-index.schema.json"
 }

@@ -1,11 +1,11 @@
 {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
-  "@id": "https://example.com/games/search/genre/adventure",
+  "@id": "https://kmturley.github.io/static-api-json-schema/games/search/genre/adventure",
   "name": "games genre Adventure",
   "about": [
     {
-      "@id": "https://example.com/games",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games",
       "@type": "CollectionPage",
       "name": "games collection"
     }
@@ -13,7 +13,7 @@
   "value": "Adventure",
   "hasPart": [
     {
-      "@id": "https://example.com/games/space-quest",
+      "@id": "https://kmturley.github.io/static-api-json-schema/games/space-quest",
       "@type": "SoftwareApplication",
       "name": "Space Quest Prototype"
     }

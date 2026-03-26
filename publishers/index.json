@@ -1,16 +1,16 @@
 {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
-  "@id": "https://example.com/publishers",
+  "@id": "https://kmturley.github.io/static-api-json-schema/publishers",
   "name": "publishers collection",
   "hasPart": [
     {
-      "@id": "https://example.com/publishers/acme",
+      "@id": "https://kmturley.github.io/static-api-json-schema/publishers/acme",
       "@type": "Organization",
       "name": "Acme Interactive"
     },
     {
-      "@id": "https://example.com/publishers/lighthouse",
+      "@id": "https://kmturley.github.io/static-api-json-schema/publishers/lighthouse",
       "@type": "Organization",
       "name": "Lighthouse Studio"
     }

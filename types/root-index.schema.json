@@ -96,5 +96,5 @@
     "version"
   ],
   "additionalProperties": false,
-  "$id": "https://example.com/types/root-index.schema.json"
+  "$id": "https://kmturley.github.io/static-api-json-schema/types/root-index.schema.json"
 }

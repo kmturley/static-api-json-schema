@@ -1,8 +1,8 @@
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "@id": "https://example.com/publishers/lighthouse",
+  "@id": "https://kmturley.github.io/static-api-json-schema/publishers/lighthouse",
   "name": "Lighthouse Studio",
   "description": "Small publisher shipping experimental narrative and puzzle games.",
-  "url": "https://example.com/publishers/lighthouse"
+  "url": "https://kmturley.github.io/static-api-json-schema/publishers/lighthouse"
 }
