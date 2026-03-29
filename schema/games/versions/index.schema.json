@@ -93,5 +93,5 @@
     "distribution"
   ],
   "additionalProperties": false,
-  "$id": "https://kmturley.github.io/static-api-json-schema/types/resources/games.version.schema.json"
+  "$id": "https://kmturley.github.io/static-api-json-schema/schema/games/versions"
 }

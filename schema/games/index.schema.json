@@ -123,5 +123,5 @@
     "latestVersion"
   ],
   "additionalProperties": false,
-  "$id": "https://kmturley.github.io/static-api-json-schema/types/resources/games.resource.schema.json"
+  "$id": "https://kmturley.github.io/static-api-json-schema/schema/games"
 }

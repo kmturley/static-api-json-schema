@@ -89,5 +89,5 @@
     "value"
   ],
   "additionalProperties": false,
-  "$id": "https://kmturley.github.io/static-api-json-schema/types/search-value-index.schema.json"
+  "$id": "https://kmturley.github.io/static-api-json-schema/schema/search-value"
 }

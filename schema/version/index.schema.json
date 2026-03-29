@@ -29,7 +29,7 @@
           },
           "@type": {
             "type": "string",
-            "const": "CollectionPage"
+            "minLength": 1
           },
           "name": {
             "type": "string",
@@ -44,6 +44,8 @@
       }
     },
     "about": {
+      "minItems": 1,
+      "maxItems": 1,
       "type": "array",
       "items": {
         "type": "object",
@@ -54,7 +56,7 @@
           },
           "@type": {
             "type": "string",
-            "const": "CollectionPage"
+            "minLength": 1
           },
           "name": {
             "type": "string",
@@ -92,9 +94,8 @@
     "@id",
     "name",
     "hasPart",
-    "about",
-    "version"
+    "about"
   ],
   "additionalProperties": false,
-  "$id": "https://kmturley.github.io/static-api-json-schema/types/root-index.schema.json"
+  "$id": "https://kmturley.github.io/static-api-json-schema/schema/version"
 }

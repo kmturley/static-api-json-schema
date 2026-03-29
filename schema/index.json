@@ -1,0 +1,46 @@
+{
+  "apiName": "Static API JSON Schema",
+  "apiVersion": "0.1.0",
+  "definitions": [
+    {
+      "name": "root",
+      "path": "/schema/root",
+      "url": "https://kmturley.github.io/static-api-json-schema/schema/root"
+    },
+    {
+      "name": "collection",
+      "path": "/schema/collection",
+      "url": "https://kmturley.github.io/static-api-json-schema/schema/collection"
+    },
+    {
+      "name": "search-manifest",
+      "path": "/schema/search-manifest",
+      "url": "https://kmturley.github.io/static-api-json-schema/schema/search-manifest"
+    },
+    {
+      "name": "search-value",
+      "path": "/schema/search-value",
+      "url": "https://kmturley.github.io/static-api-json-schema/schema/search-value"
+    },
+    {
+      "name": "version",
+      "path": "/schema/version",
+      "url": "https://kmturley.github.io/static-api-json-schema/schema/version"
+    },
+    {
+      "name": "games-resource",
+      "path": "/schema/games",
+      "url": "https://kmturley.github.io/static-api-json-schema/schema/games"
+    },
+    {
+      "name": "games-version",
+      "path": "/schema/games/versions",
+      "url": "https://kmturley.github.io/static-api-json-schema/schema/games/versions"
+    },
+    {
+      "name": "publishers-resource",
+      "path": "/schema/publishers",
+      "url": "https://kmturley.github.io/static-api-json-schema/schema/publishers"
+    }
+  ]
+}
