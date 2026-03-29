@@ -13,10 +13,20 @@ const PublisherSchema = z.object({
   url: PublicUrl,
 });
 
+const PublisherOutputSchema = z.object({
+  "@context": z.string(),
+  "@type": z.literal("Organization"),
+  "@id": z.string().url(),
+  name: z.string(),
+  description: z.string(),
+  url: z.string().url(),
+});
+
 export const publishersResourceType: ResourceTypeDefinition = {
   resourceSchema: PublisherSchema,
   resourceJsonLdType: "Organization",
   allowedResourceTypes: ["Organization"],
+  resourceOutputSchema: PublisherOutputSchema,
   compileResource({ resource, helper }) {
     return helper.makeJsonLdDocument("Organization", {
       name: resource.data.name as string,

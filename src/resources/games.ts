@@ -33,6 +33,58 @@ const GameVersionSchema = z.object({
   files: z.array(GameFileSchema).min(1).max(16),
 });
 
+const GameOutputSchema = z.object({
+  "@context": z.string(),
+  "@type": z.literal("SoftwareApplication"),
+  "@id": z.string().url(),
+  name: z.string(),
+  description: z.string(),
+  applicationCategory: z.string(),
+  keywords: z.array(z.string()),
+  publisher: z.object({
+    "@id": z.string().url(),
+    "@type": z.literal("Organization"),
+  }),
+  url: z.string().url(),
+  image: z.string().url().nullable(),
+  versions: z.array(
+    z.object({
+      "@id": z.string().url(),
+      "@type": z.literal("SoftwareSourceCode"),
+    }),
+  ),
+  latestVersion: z
+    .object({
+      "@id": z.string().url(),
+      "@type": z.literal("SoftwareSourceCode"),
+    })
+    .nullable(),
+});
+
+const GameVersionOutputSchema = z.object({
+  "@context": z.string(),
+  "@type": z.literal("SoftwareSourceCode"),
+  "@id": z.string().url(),
+  name: z.string(),
+  version: z.string(),
+  datePublished: z.string(),
+  releaseNotes: z.string(),
+  isPartOf: z.object({
+    "@id": z.string().url(),
+    "@type": z.literal("SoftwareApplication"),
+  }),
+  distribution: z.array(
+    z.object({
+      "@type": z.literal("DataDownload"),
+      name: z.string(),
+      contentUrl: z.string().url(),
+      encodingFormat: z.string(),
+      license: z.string().url(),
+      operatingSystem: z.string().optional(),
+    }),
+  ),
+});
+
 export const gamesResourceType: ResourceTypeDefinition = {
   resourceSchema: GameSchema,
   versionSchema: GameVersionSchema,
@@ -40,6 +92,8 @@ export const gamesResourceType: ResourceTypeDefinition = {
   versionJsonLdType: "SoftwareSourceCode",
   allowedResourceTypes: ["SoftwareApplication"],
   allowedVersionTypes: ["SoftwareSourceCode"],
+  resourceOutputSchema: GameOutputSchema,
+  versionOutputSchema: GameVersionOutputSchema,
   compileResource({ resource, helper }) {
     const latestVersion = helper.latestVersionReference();
 
