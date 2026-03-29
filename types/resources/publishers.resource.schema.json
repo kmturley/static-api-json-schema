@@ -3,14 +3,23 @@
   "type": "object",
   "properties": {
     "@context": {
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "@type": {
       "type": "string",
-      "minLength": 1
+      "const": "Organization"
     },
     "@id": {
+      "type": "string",
+      "format": "uri"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "url": {
       "type": "string",
       "format": "uri"
     }
@@ -18,7 +27,10 @@
   "required": [
     "@context",
     "@type",
-    "@id"
+    "@id",
+    "name",
+    "description",
+    "url"
   ],
   "additionalProperties": false,
   "$id": "https://kmturley.github.io/static-api-json-schema/types/resources/publishers.resource.schema.json"

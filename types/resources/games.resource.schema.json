@@ -3,22 +3,124 @@
   "type": "object",
   "properties": {
     "@context": {
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "@type": {
       "type": "string",
-      "minLength": 1
+      "const": "SoftwareApplication"
     },
     "@id": {
       "type": "string",
       "format": "uri"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "applicationCategory": {
+      "type": "string"
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "publisher": {
+      "type": "object",
+      "properties": {
+        "@id": {
+          "type": "string",
+          "format": "uri"
+        },
+        "@type": {
+          "type": "string",
+          "const": "Organization"
+        }
+      },
+      "required": [
+        "@id",
+        "@type"
+      ],
+      "additionalProperties": false
+    },
+    "url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "image": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "@id": {
+            "type": "string",
+            "format": "uri"
+          },
+          "@type": {
+            "type": "string",
+            "const": "SoftwareSourceCode"
+          }
+        },
+        "required": [
+          "@id",
+          "@type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "latestVersion": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "@id": {
+              "type": "string",
+              "format": "uri"
+            },
+            "@type": {
+              "type": "string",
+              "const": "SoftwareSourceCode"
+            }
+          },
+          "required": [
+            "@id",
+            "@type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [
     "@context",
     "@type",
-    "@id"
+    "@id",
+    "name",
+    "description",
+    "applicationCategory",
+    "keywords",
+    "publisher",
+    "url",
+    "image",
+    "versions",
+    "latestVersion"
   ],
   "additionalProperties": false,
   "$id": "https://kmturley.github.io/static-api-json-schema/types/resources/games.resource.schema.json"

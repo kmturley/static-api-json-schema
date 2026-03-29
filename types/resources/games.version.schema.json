@@ -3,22 +3,94 @@
   "type": "object",
   "properties": {
     "@context": {
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "@type": {
       "type": "string",
-      "minLength": 1
+      "const": "SoftwareSourceCode"
     },
     "@id": {
       "type": "string",
       "format": "uri"
+    },
+    "name": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "datePublished": {
+      "type": "string"
+    },
+    "releaseNotes": {
+      "type": "string"
+    },
+    "isPartOf": {
+      "type": "object",
+      "properties": {
+        "@id": {
+          "type": "string",
+          "format": "uri"
+        },
+        "@type": {
+          "type": "string",
+          "const": "SoftwareApplication"
+        }
+      },
+      "required": [
+        "@id",
+        "@type"
+      ],
+      "additionalProperties": false
+    },
+    "distribution": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "const": "DataDownload"
+          },
+          "name": {
+            "type": "string"
+          },
+          "contentUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "encodingFormat": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string",
+            "format": "uri"
+          },
+          "operatingSystem": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "@type",
+          "name",
+          "contentUrl",
+          "encodingFormat",
+          "license"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
     "@context",
     "@type",
-    "@id"
+    "@id",
+    "name",
+    "version",
+    "datePublished",
+    "releaseNotes",
+    "isPartOf",
+    "distribution"
   ],
   "additionalProperties": false,
   "$id": "https://kmturley.github.io/static-api-json-schema/types/resources/games.version.schema.json"
