@@ -638,22 +638,29 @@ test("publishes machine-readable type definitions for generated document shapes"
 
   await runBuild({ cwd, write: true, config: makeTestConfig(), mode: "development" }, registry);
 
-  const manifest = JSON.parse(await fs.readFile(path.join(cwd, "out/types/index.json"), "utf8"));
+  const manifest = JSON.parse(await fs.readFile(path.join(cwd, "out/schema/index.json"), "utf8"));
   assert.equal(manifest.apiName, "Example API");
-  assert.ok(manifest.definitions.some((entry: { name: string }) => entry.name === "root-index"));
+  assert.ok(manifest.definitions.some((entry: { name: string }) => entry.name === "root"));
   assert.ok(manifest.definitions.some((entry: { name: string }) => entry.name === "games-resource"));
   assert.ok(manifest.definitions.some((entry: { name: string }) => entry.name === "games-version"));
 
-  const rootIndexSchema = JSON.parse(await fs.readFile(path.join(cwd, "out/types/root-index.schema.json"), "utf8"));
-  assert.equal(rootIndexSchema["$id"], "https://example.com/types/root-index.schema.json");
+  // Check that manifest paths are directory-based (no filenames)
+  const gamesResourceDef = manifest.definitions.find((entry: { name: string }) => entry.name === "games-resource");
+  assert.equal(gamesResourceDef.path, "/schema/games");
+  assert.equal(gamesResourceDef.url, "https://example.com/schema/games");
+
+  const gamesVersionDef = manifest.definitions.find((entry: { name: string }) => entry.name === "games-version");
+  assert.equal(gamesVersionDef.path, "/schema/games/versions");
+  assert.equal(gamesVersionDef.url, "https://example.com/schema/games/versions");
+
+  const rootIndexSchema = JSON.parse(await fs.readFile(path.join(cwd, "out/schema/root/index.schema.json"), "utf8"));
+  assert.equal(rootIndexSchema["$id"], "https://example.com/schema/root");
   assert.equal(rootIndexSchema.type, "object");
   assert.ok(rootIndexSchema.required.includes("@context"));
   assert.ok(rootIndexSchema.required.includes("hasPart"));
 
-  const resourceSchema = JSON.parse(
-    await fs.readFile(path.join(cwd, "out/types/resources/games.resource.schema.json"), "utf8"),
-  );
-  assert.equal(resourceSchema["$id"], "https://example.com/types/resources/games.resource.schema.json");
+  const resourceSchema = JSON.parse(await fs.readFile(path.join(cwd, "out/schema/games/index.schema.json"), "utf8"));
+  assert.equal(resourceSchema["$id"], "https://example.com/schema/games");
   assert.equal(resourceSchema.type, "object");
   assert.ok(resourceSchema.required.includes("@context"));
 });

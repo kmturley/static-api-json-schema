@@ -1033,37 +1033,41 @@ function buildTypeDefinitionDocuments(
 ): GeneratedDocument[] {
   const documents: GeneratedDocument[] = [];
   const definitions: Array<{ name: string; path: string; schema: z.ZodType<JsonObject> }> = [
-    { name: "root-index", path: "types/root-index.schema.json", schema: RootIndexSchema },
-    { name: "collection-index", path: "types/collection-index.schema.json", schema: ResourceCollectionSchema },
-    { name: "search-manifest", path: "types/search-manifest.schema.json", schema: SearchManifestSchema },
-    { name: "search-value-index", path: "types/search-value-index.schema.json", schema: SearchValueIndexSchema },
-    { name: "version-index", path: "types/version-index.schema.json", schema: VersionIndexSchema },
+    { name: "root", path: "schema/root/index.schema.json", schema: RootIndexSchema },
+    { name: "collection", path: "schema/collection/index.schema.json", schema: ResourceCollectionSchema },
+    { name: "search-manifest", path: "schema/search-manifest/index.schema.json", schema: SearchManifestSchema },
+    { name: "search-value", path: "schema/search-value/index.schema.json", schema: SearchValueIndexSchema },
+    { name: "version", path: "schema/version/index.schema.json", schema: VersionIndexSchema },
   ];
 
   for (const [resourceType, definition] of Object.entries(registry)) {
     definitions.push({
       name: `${resourceType}-resource`,
-      path: `types/resources/${resourceType}.resource.schema.json`,
+      path: `schema/${resourceType}/index.schema.json`,
       schema: definition.resourceOutputSchema ?? IndexDocumentSchema,
     });
     if (definition.versionSchema) {
       definitions.push({
         name: `${resourceType}-version`,
-        path: `types/resources/${resourceType}.version.schema.json`,
+        path: `schema/${resourceType}/versions/index.schema.json`,
         schema: definition.versionOutputSchema ?? IndexDocumentSchema,
       });
     }
   }
 
-  const manifestEntries = definitions.map((definition) => ({
-    name: definition.name,
-    path: `/${definition.path}`,
-    url: `${rootDomain}/${definition.path}`,
-  }));
+  const manifestEntries = definitions.map((definition) => {
+    // Remove the filename for directory-based paths
+    const pathWithoutFilename = definition.path.replace(/\/index\.schema\.json$/, "");
+    return {
+      name: definition.name,
+      path: `/${pathWithoutFilename}`,
+      url: `${rootDomain}/${pathWithoutFilename}`,
+    };
+  });
 
   documents.push({
-    outputPath: "types/index.json",
-    urlPath: "/types",
+    outputPath: "schema/index.json",
+    urlPath: "/schema",
     document: {
       apiName: config.apiName,
       apiVersion: config.apiVersion,
@@ -1075,7 +1079,10 @@ function buildTypeDefinitionDocuments(
     documents.push({
       outputPath: definition.path,
       urlPath: `/${definition.path}`,
-      document: buildJsonSchemaDocument(definition.schema, `${rootDomain}/${definition.path}`),
+      document: buildJsonSchemaDocument(
+        definition.schema,
+        `${rootDomain}/${definition.path.replace(/\/index\.schema\.json$/, "")}`,
+      ),
     });
   }
 

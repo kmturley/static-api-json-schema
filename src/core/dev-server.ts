@@ -37,7 +37,7 @@ export function getDevServerPathCandidates(requestUrl: string | undefined): stri
   }
 
   if (pathname.endsWith("/")) {
-    return [`${pathname}index.json`, `${pathname}index.html`];
+    return [`${pathname}index.schema.json`, `${pathname}index.json`, `${pathname}index.html`];
   }
 
   const lastSegment = pathname.split("/").pop() ?? "";
@@ -45,7 +45,13 @@ export function getDevServerPathCandidates(requestUrl: string | undefined): stri
     return [pathname];
   }
 
-  return [pathname, `${pathname}/index.json`, `${pathname}/index.html`, `${pathname}.json`];
+  return [
+    pathname,
+    `${pathname}/index.schema.json`,
+    `${pathname}/index.json`,
+    `${pathname}/index.html`,
+    `${pathname}.json`,
+  ];
 }
 
 export function getDevServerContentType(filePath: string): string {

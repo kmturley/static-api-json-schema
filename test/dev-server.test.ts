@@ -36,12 +36,14 @@ test("maps clean resource URLs to generated index files", () => {
   assert.deepEqual(getDevServerPathCandidates("/"), ["/index.json"]);
   assert.deepEqual(getDevServerPathCandidates("/games"), [
     "/games",
+    "/games/index.schema.json",
     "/games/index.json",
     "/games/index.html",
     "/games.json",
   ]);
   assert.deepEqual(getDevServerPathCandidates("/games/lumen-drift"), [
     "/games/lumen-drift",
+    "/games/lumen-drift/index.schema.json",
     "/games/lumen-drift/index.json",
     "/games/lumen-drift/index.html",
     "/games/lumen-drift.json",
@@ -50,7 +52,11 @@ test("maps clean resource URLs to generated index files", () => {
 
 test("preserves explicit filenames and strips query strings", () => {
   assert.deepEqual(getDevServerPathCandidates("/docs/index.html?view=full"), ["/docs/index.html"]);
-  assert.deepEqual(getDevServerPathCandidates("/docs/?view=full"), ["/docs/index.json", "/docs/index.html"]);
+  assert.deepEqual(getDevServerPathCandidates("/docs/?view=full"), [
+    "/docs/index.schema.json",
+    "/docs/index.json",
+    "/docs/index.html",
+  ]);
 });
 
 test("detects content types for static files", () => {
